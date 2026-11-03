@@ -122,7 +122,11 @@ describe('registerHandlers', () => {
   it('forwards only name and service of a thrown error', async () => {
     humble.listOrderGamekeys.mockRejectedValue(new SessionExpiredError('steam'))
     const handlers = new Map<string, (...a: unknown[]) => Promise<unknown>>()
-    registerHandlers({ handle: (c: string, f: never) => void handlers.set(c, f) } as never, make())
+    registerHandlers(
+      { handle: (c: string, f: never) => void handlers.set(c, f) } as never,
+      make(),
+      () => true
+    )
     const err = await handlers.get('gizmo:loadLibrary')!({}).catch((e: Error) => e)
     expect((err as Error).message).toContain(
       'GIZMO_ERR:{"name":"SessionExpiredError","service":"steam"}'
@@ -349,5 +353,133 @@ describe('deleteAllData', () => {
     expect(platform.signOut).toHaveBeenCalledWith('steam')
     await h.loadLibrary()
     expect(humble.listOrderGamekeys).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('fix round 1', () => {
+  const failFn = (): never => {
+    throw new Error('x')
+  }
+
+  it('buildReview never returns revealed keys but startRun still uses them', async () => {
+    const h = make()
+    const review = await h.buildReview()
+    expect(review.length).toBeGreaterThan(0)
+    expect(review.every((it) => it.key.revealedKey === null)).toBe(true)
+    const alpha = review.find((r) => r.key.name === 'Alpha')!
+    await h.startRun([alpha.key.id])
+    await h.__waitForRun()
+    expect(steam.registerKey).toHaveBeenCalledWith(GOOD_KEY)
+  })
+
+  it('powerSave.start throwing leaves no active runner', async () => {
+    const h = make()
+    const [item] = await h.buildReview()
+    ;(platform.powerSave.start as ReturnType<typeof vi.fn>).mockImplementationOnce(failFn)
+    await expect(h.startRun([item.key.id])).rejects.toThrow('GIZMO_ERR:')
+    await h.startRun([item.key.id])
+    await h.__waitForRun()
+  })
+
+  it('a second startRun without rebuilding the review runs nothing', async () => {
+    const h = make()
+    const review = await h.buildReview()
+    const ids = review.map((r) => r.key.id)
+    await h.startRun(ids)
+    await h.__waitForRun()
+    const calls = steam.registerKey.mock.calls.length
+    humble.revealKey.mockClear()
+    await h.startRun(ids)
+    await h.__waitForRun()
+    expect(steam.registerKey.mock.calls.length).toBe(calls)
+    expect(humble.revealKey).not.toHaveBeenCalled()
+  })
+
+  it('run state is cleared even when powerSave.stop throws', async () => {
+    ;(platform.powerSave.stop as ReturnType<typeof vi.fn>).mockImplementationOnce(failFn)
+    const h = make()
+    const [item] = await h.buildReview()
+    await h.startRun([item.key.id])
+    await h.__waitForRun().catch(() => undefined)
+    await h.startRun([]) // would reject if still active
+    await h.__waitForRun()
+  })
+
+  it('exportCsv revealAll keeps an existing record outcome and adds the key', async () => {
+    await keys.upsert({
+      id: 'g1:2:m2',
+      name: 'Beta',
+      steamAppId: 102,
+      revealedKey: null,
+      outcome: 'error',
+      resultCode: 15,
+      runId: 'old',
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    })
+    await make().exportCsv({
+      steamOnly: true,
+      includeRevealed: true,
+      includeUnrevealed: true,
+      revealAll: true,
+      withOwnership: false
+    })
+    expect(keys.get('g1:2:m2')).toMatchObject({
+      outcome: 'error',
+      revealedKey: 'DDDDD-EEEEE-FFFFF'
+    })
+  })
+
+  it('claimChoices removes claimed games from the cache and survives a refresh failure', async () => {
+    const choiceOrder = {
+      gamekey: 'g1',
+      created: '2026-08-01T10:00:00.000000',
+      choices_remaining: 2,
+      product: { human_name: 'C', category: 'subscriptioncontent', choice_url: 'x' },
+      tpkd_dict: { all_tpks: [] }
+    }
+    const month: ChoiceMonth = {
+      gamekey: 'g1',
+      name: 'C',
+      choiceUrl: 'x',
+      created: '',
+      usesChoices: true,
+      choicesRemaining: 2,
+      parentIdentifier: 'p',
+      games: [{ identifier: 'ok', title: 'Ok', rating: null, claimable: true, gamekey: 'gk' }]
+    }
+    humble.getOrders.mockResolvedValue({ orders: [choiceOrder], failed: [] })
+    humble.getChoiceMonth.mockResolvedValue(month)
+    const h = make()
+    await h.listChoiceMonths()
+    humble.getOrders.mockRejectedValue(new Error('refresh failed'))
+    expect(await h.claimChoices('g1', ['ok'])).toEqual({ failed: [] })
+    expect((await h.claimChoices('g1', ['ok'])).failed).toEqual(['ok'])
+    expect(humble.chooseContent).toHaveBeenCalledTimes(1)
+  })
+
+  it('deleteAllData stops an active run and tolerates sign-out errors', async () => {
+    let release: (n: number) => void = () => undefined
+    steam.registerKey.mockImplementation(() => new Promise<number>((r) => (release = r)))
+    ;(platform.signOut as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('x'))
+    const h = make()
+    const review = await h.buildReview()
+    await h.startRun(review.map((r) => r.key.id))
+    await vi.waitFor(() => expect(steam.registerKey).toHaveBeenCalled())
+    await h.deleteAllData()
+    release(1)
+    await h.__waitForRun()
+    expect(events.at(-1)).toMatchObject({ type: 'stopped', reason: 'user' })
+  })
+
+  it('registerHandlers rejects untrusted senders', async () => {
+    const handlers = new Map<string, (...a: unknown[]) => Promise<unknown>>()
+    registerHandlers(
+      { handle: (c: string, f: never) => void handlers.set(c, f) } as never,
+      make(),
+      (e) => (e as { senderFrame?: { url: string } }).senderFrame?.url === 'file:///app/index.html'
+    )
+    const h = handlers.get('gizmo:storageEncrypted')!
+    await expect(h({ senderFrame: { url: 'https://evil.com/' } })).rejects.toThrow('GIZMO_ERR:')
+    expect(await h({ senderFrame: { url: 'file:///app/index.html' } })).toBe(true)
   })
 })

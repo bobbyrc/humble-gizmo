@@ -185,8 +185,10 @@ export function createHandlers(ctx: AppContext): Handlers {
     buildReview: async () => {
       const lib = await requireLibrary()
       const owned = await steam.getOwned()
-      review = buildReviewList(lib.keys, owned, keys.all())
-      return review
+      const built = buildReviewList(lib.keys, owned, keys.all())
+      review = built
+      // Revealed values stay in the main process; the renderer gets copies without them.
+      return built.map((it) => ({ ...it, key: { ...it.key, revealedKey: null } }))
     },
 
     startRun: async (ids) => {
@@ -203,19 +205,24 @@ export function createHandlers(ctx: AppContext): Handlers {
         clock,
         onEvent: send
       })
-      activeRunner = runner
-      platform.powerSave.start()
       const runId = globalThis.crypto.randomUUID()
-      runDone = runner
-        .run(toRun, runId)
-        .then(
-          () => undefined,
-          () => send({ type: 'stopped', reason: 'error' })
-        )
-        .finally(() => {
-          platform.powerSave.stop()
+      platform.powerSave.start()
+      activeRunner = runner
+      review = null // a run changes record state; the renderer must rebuild before the next one
+      runDone = (async () => {
+        try {
+          await runner.run(toRun, runId)
+        } catch {
+          send({ type: 'stopped', reason: 'error' })
+        } finally {
           activeRunner = null
-        })
+          try {
+            platform.powerSave.stop()
+          } catch {
+            // the run is over either way
+          }
+        }
+      })()
     },
 
     stopRun: async () => {
@@ -238,8 +245,7 @@ export function createHandlers(ctx: AppContext): Handlers {
     },
 
     claimChoices: async (monthGamekey, identifiers) => {
-      const lib = await requireLibrary()
-      const month = months.get(monthGamekey)
+      let month = months.get(monthGamekey)
       const failed: string[] = []
       for (const identifier of identifiers) {
         const game = month?.games.find((g) => g.identifier === identifier)
@@ -250,20 +256,33 @@ export function createHandlers(ctx: AppContext): Handlers {
         try {
           const ok = await humble.chooseContent(game.gamekey, month.parentIdentifier, identifier)
           if (!ok) failed.push(identifier)
+          else {
+            const left = { ...month, games: month.games.filter((g) => g.identifier !== identifier) }
+            months.set(monthGamekey, left)
+            month = left
+          }
         } catch (e) {
           if (e instanceof SessionExpiredError) throw e
           failed.push(identifier)
         }
       }
-      const refreshed = await humble.getOrders([monthGamekey])
-      if (refreshed.orders.length > 0) {
-        const fresh = refreshed.orders[0]
-        const idx = lib.orders.findIndex(
-          (o) => (o as { gamekey?: unknown } | null)?.gamekey === monthGamekey
-        )
-        if (idx >= 0) lib.orders[idx] = fresh
-        else lib.orders.push(fresh)
-        lib.keys = extractKeys(lib.orders)
+      if (month && library) {
+        try {
+          const refreshed = await humble.getOrders([monthGamekey])
+          if (refreshed.orders.length > 0) {
+            const lib = library as Library
+            const fresh = refreshed.orders[0]
+            const idx = lib.orders.findIndex(
+              (o) => (o as { gamekey?: unknown } | null)?.gamekey === monthGamekey
+            )
+            if (idx >= 0) lib.orders[idx] = fresh
+            else lib.orders.push(fresh)
+            lib.keys = extractKeys(lib.orders)
+          }
+        } catch (e) {
+          if (e instanceof SessionExpiredError) throw e
+          // the claims went through; a stale cache is acceptable
+        }
       }
       return { failed }
     },
@@ -286,7 +305,10 @@ export function createHandlers(ctx: AppContext): Handlers {
           const v = await humble.revealKey(k)
           if (!v) continue
           k.revealedKey = v
-          if (!keys.get(k.id)) {
+          const existing = keys.get(k.id)
+          if (existing) {
+            if (existing.revealedKey === null) await keys.upsert({ ...existing, revealedKey: v })
+          } else {
             await keys.upsert({
               id: k.id,
               name: k.name,
@@ -317,11 +339,12 @@ export function createHandlers(ctx: AppContext): Handlers {
     },
 
     deleteAllData: async () => {
+      activeRunner?.stop()
+      clearCaches()
       await keys.deleteAll()
       await settings.update(DEFAULT_SETTINGS)
-      await platform.signOut('humble')
-      await platform.signOut('steam')
-      clearCaches()
+      await platform.signOut('humble').catch(() => undefined)
+      await platform.signOut('steam').catch(() => undefined)
     },
 
     checkForUpdatesNow: () => platform.checkForUpdates(),
@@ -334,12 +357,28 @@ export function createHandlers(ctx: AppContext): Handlers {
   return wrapped as Handlers
 }
 
-export function registerHandlers(ipc: Pick<IpcMain, 'handle'>, api: GizmoApi): void {
+/** Only our own page may call the bridge: a file: URL in production, the dev server in dev. */
+export function defaultIsTrustedSender(event: unknown): boolean {
+  const url = (event as { senderFrame?: { url?: string } } | null)?.senderFrame?.url
+  if (typeof url !== 'string') return false
+  if (url.startsWith('file://')) return true
+  const dev = process.env['ELECTRON_RENDERER_URL']
+  return dev !== undefined && dev !== '' && new URL(url).origin === new URL(dev).origin
+}
+
+export function registerHandlers(
+  ipc: Pick<IpcMain, 'handle'>,
+  api: GizmoApi,
+  isTrustedSender: (event: unknown) => boolean = defaultIsTrustedSender
+): void {
   for (const name of IPC_METHODS) {
     const fn = api[name] as AnyAsync
     ipc.handle(
       `gizmo:${name}`,
-      wrap((_e, ...args) => fn(...args))
+      wrap(async (e, ...args) => {
+        if (!isTrustedSender(e)) throw new Error('untrusted sender')
+        return fn(...args)
+      })
     )
   }
 }

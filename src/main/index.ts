@@ -16,10 +16,21 @@ import { SettingsStore } from './store/settingsStore'
 import { createSafeStorageCodec, type SecretCodec } from './store/secretCodec'
 import { createHandlers, registerHandlers, type Platform } from './ipc/handlers'
 
+// Only these mean "the saved file is unreadable"; anything else (EACCES, ...) is not fixed by starting fresh.
+function isUnreadableStore(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : ''
+  return (
+    msg === 'keys.json is encrypted but no encrypting codec is available' ||
+    msg.includes('corrupt JSON in keys.json') ||
+    /decrypt/i.test(msg)
+  )
+}
+
 async function openKeyStore(dir: string, codec: SecretCodec): Promise<KeyStore | null> {
   try {
     return await KeyStore.open(dir, codec)
-  } catch {
+  } catch (e) {
+    if (!isUnreadableStore(e)) throw e
     const { response } = await dialog.showMessageBox({
       type: 'warning',
       message:
@@ -29,7 +40,11 @@ async function openKeyStore(dir: string, codec: SecretCodec): Promise<KeyStore |
       cancelId: 1
     })
     if (response !== 0) return null
-    await fs.rename(join(dir, 'keys.json'), join(dir, `keys.unreadable-${Date.now()}.json`))
+    try {
+      await fs.rename(join(dir, 'keys.json'), join(dir, `keys.unreadable-${Date.now()}.json`))
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    }
     return KeyStore.open(dir, codec)
   }
 }
@@ -113,7 +128,12 @@ if (process.env.GIZMO_PROBE === '1') {
 } else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  void app.whenReady().then(start)
+  void app.whenReady().then(() =>
+    start().catch(() => {
+      dialog.showErrorBox('Humble Gizmo', 'Humble Gizmo could not start.')
+      app.quit()
+    })
+  )
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
