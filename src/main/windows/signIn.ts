@@ -4,11 +4,15 @@ import {
   PARTITIONS,
   SIGN_IN_URLS,
   STATUS_URLS,
-  isSameServiceNavigation,
+  isAllowedSignInNavigation,
+  isSafeExternalUrl,
   isSignInSuccessUrl
 } from './signInUrls'
 
 export {
+  isAllowedSignInNavigation,
+  isIdentityProviderUrl,
+  isSafeExternalUrl,
   PARTITIONS,
   SIGN_IN_URLS,
   STATUS_URLS,
@@ -48,15 +52,20 @@ export function openSignInWindow(service: Service, parent?: BrowserWindow): Prom
     }
     contents.on('did-navigate', (_e, url) => checkUrl(url))
     contents.on('did-navigate-in-page', (_e, url) => checkUrl(url))
-    contents.on('will-navigate', (event, url) => {
-      if (!isSameServiceNavigation(url)) {
+    const openExternal = (url: string): void => {
+      if (isSafeExternalUrl(url)) void shell.openExternal(url)
+    }
+    const guard = (event: { preventDefault: () => void }, url: string): void => {
+      if (!isAllowedSignInNavigation(url)) {
         event.preventDefault()
-        void shell.openExternal(url)
+        openExternal(url)
       }
-    })
+    }
+    contents.on('will-navigate', (event, url) => guard(event, url))
+    contents.on('will-redirect', (event, url) => guard(event, url))
     contents.setWindowOpenHandler(({ url }) => {
-      if (isSameServiceNavigation(url)) void contents.loadURL(url)
-      else void shell.openExternal(url)
+      if (isAllowedSignInNavigation(url)) void contents.loadURL(url)
+      else openExternal(url)
       return { action: 'deny' }
     })
     win.on('closed', () => finish(false))

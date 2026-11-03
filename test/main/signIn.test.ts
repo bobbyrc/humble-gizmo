@@ -3,9 +3,47 @@ import {
   PARTITIONS,
   SIGN_IN_URLS,
   STATUS_URLS,
+  isAllowedSignInNavigation,
+  isIdentityProviderUrl,
+  isSafeExternalUrl,
   isSameServiceNavigation,
   isSignInSuccessUrl
 } from '../../src/main/windows/signInUrls'
+
+describe('isSafeExternalUrl', () => {
+  it('allows only http and https', () => {
+    expect(isSafeExternalUrl('https://example.com/')).toBe(true)
+    expect(isSafeExternalUrl('http://example.com/')).toBe(true)
+    for (const u of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'smb://x/y',
+      'ms-msdt:x',
+      'nope'
+    ]) {
+      expect(isSafeExternalUrl(u)).toBe(false)
+    }
+  })
+})
+
+describe('identity providers', () => {
+  it('allows each IdP host and nothing lookalike', () => {
+    for (const h of [
+      'accounts.google.com',
+      'appleid.apple.com',
+      'facebook.com',
+      'www.facebook.com',
+      'm.facebook.com'
+    ]) {
+      expect(isIdentityProviderUrl(`https://${h}/x`)).toBe(true)
+      expect(isAllowedSignInNavigation(`https://${h}/x`)).toBe(true)
+    }
+    expect(isIdentityProviderUrl('https://accounts.google.com.evil.com/')).toBe(false)
+    expect(isIdentityProviderUrl('http://accounts.google.com/')).toBe(false)
+    expect(isAllowedSignInNavigation('https://accounts.google.com.evil.com/')).toBe(false)
+    expect(isAllowedSignInNavigation('https://www.humblebundle.com/')).toBe(true)
+  })
+})
 
 describe('constants', () => {
   it('uses the exact partitions and URLs', () => {
