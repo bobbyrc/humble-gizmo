@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasLeaks, sanitize } from '../../src/core/sanitize'
+import { hasLeaks, sanitize, sanitizeWithOriginals } from '../../src/core/sanitize'
 
 const S = 'salt-1'
 const out = (v: unknown, salt = S): unknown => sanitize(v, salt)
@@ -53,8 +53,12 @@ describe('sanitize', () => {
   })
 
   it('replaces 17-digit steam ids in strings and numbers', () => {
-    const a = out({ s: 'id 76561198012345678 x', n: JSON.parse('76561198012345678') })
+    const num: number = JSON.parse('76561198012345678')
+    const a = out({ s: 'id 76561198012345678 x', n: num }) as { s: string; n: unknown }
     expect(json(a)).not.toContain('76561198012345678')
+    expect(a.n).not.toBe(num)
+    expect(String(a.n)).toMatch(/^7656119/)
+    expect(a.s).not.toContain('76561198012345678')
     const b = out('76561198012345678') as string
     expect(b).toMatch(/^7656119\d{10}$/)
     expect(b).not.toBe('76561198012345678')
@@ -72,11 +76,102 @@ describe('sanitize', () => {
   })
 
   it('hasLeaks flags real keys and emails but not sanitized output', () => {
-    expect(hasLeaks('x AB12C-DE34F-GH56J y')).toBe(true)
-    expect(hasLeaks('bob@gmail.com')).toBe(true)
-    expect(hasLeaks(JSON.stringify(out({ a: 'AB12C-DE34F-GH56J', b: 'bob@gmail.com' })))).toBe(
-      false
+    expect(hasLeaks('x AB12C-DE34F-GH56J y', new Set())).toBe(true)
+    expect(hasLeaks('bob@gmail.com', new Set())).toBe(true)
+    const r = sanitizeWithOriginals({ a: 'AB12C-DE34F-GH56J', b: 'bob@gmail.com' }, S)
+    expect(hasLeaks(json(r.value), r.originals)).toBe(false)
+  })
+
+  it('hasLeaks flags an original value (length >= 4) left in the text', () => {
+    expect(hasLeaks('has Zq9xKpLm in it', new Set(['Zq9xKpLm']))).toBe(true)
+    expect(hasLeaks('has abc in it', new Set(['abc']))).toBe(false)
+    expect(hasLeaks('clean', new Set(['Zq9xKpLm']))).toBe(false)
+  })
+
+  it('hasLeaks flags IPv4 addresses', () => {
+    expect(hasLeaks('{"ip":"203.0.113.7"}', new Set())).toBe(true)
+  })
+
+  it('hasLeaks flags a steam id that is not a generated fake, and accepts fakes', () => {
+    expect(hasLeaks('76561198012345678', new Set())).toBe(true)
+    const fake = out('76561198012345678') as string
+    expect(hasLeaks(fake, new Set())).toBe(false)
+  })
+
+  it('sanitizeWithOriginals reports every replaced value, including steam ids', () => {
+    const r = sanitizeWithOriginals(
+      { steam_id: '76561198012345678', note: 'AB12C-DE34F-GH56J', gamekey: 'AbCdEfGhIj123456' },
+      S
     )
+    for (const o of ['76561198012345678', 'AB12C-DE34F-GH56J', 'AbCdEfGhIj123456'])
+      expect(r.originals.has(o)).toBe(true)
+  })
+
+  it('replaces identity-like properties anywhere and leaves no original behind', () => {
+    const input = {
+      tpkd_dict: {
+        all_tpks: [
+          {
+            gamekey: 'AbCdEfGhIj123456',
+            gift_gamekey: 'ZyXwVuTsRq654321',
+            redeemed_key_val: 'plain-redeemed-code-77',
+            human_name: 'Portal 2',
+            download_url: 'https://x.test/dl?gamekey=AbCdEfGhIj123456&z=1',
+            note: 'copy of plain-redeemed-code-77 here'
+          }
+        ]
+      },
+      uid: 'uid-secret-1234',
+      user_id: 'userid-secret-5678',
+      steam_id: '76561198012345678',
+      personaname: 'SecretPersona',
+      billing_address: { street: '12 Privet Drive', city: 'Little Whinging' },
+      last4: '4242',
+      ip_address: 'hostname-ish',
+      card_brand: 'visa-brand-x',
+      paypal_email_x: 'pp-secret-val',
+      session_id: 'sess-secret-9999',
+      csrf_value: 'csrf-secret-8888',
+      password: 'hunter2-hunter2',
+      account_name: 'acct-secret-name',
+      display_name: 'Display Secret'
+    }
+    const r = sanitizeWithOriginals(input, S)
+    const text = json(r.value)
+    for (const o of [
+      'AbCdEfGhIj123456',
+      'ZyXwVuTsRq654321',
+      'plain-redeemed-code-77',
+      'uid-secret-1234',
+      'userid-secret-5678',
+      '76561198012345678',
+      'SecretPersona',
+      '12 Privet Drive',
+      'Little Whinging',
+      '4242',
+      'hostname-ish',
+      'visa-brand-x',
+      'pp-secret-val',
+      'sess-secret-9999',
+      'csrf-secret-8888',
+      'hunter2-hunter2',
+      'acct-secret-name',
+      'Display Secret'
+    ])
+      expect(text, o).not.toContain(o)
+    expect(text).toContain('Portal 2')
+    expect(hasLeaks(text, r.originals)).toBe(false)
+  })
+
+  it('only replaces integers of 6+ digits under token and cookie properties', () => {
+    const a = out({ csrf_token: 12, cookie_count_token: 123456789 }) as Record<string, unknown>
+    expect(a.csrf_token).toBe(12)
+    expect(a.cookie_count_token).not.toBe(123456789)
+  })
+
+  it('gives an object key that is a Steam key the same fake as the value form', () => {
+    const a = out({ 'AB12C-DE34F-GH56J': 1, v: 'AB12C-DE34F-GH56J' }) as Record<string, unknown>
+    expect(Object.keys(a)).toContain(a.v as string)
   })
 
   it('gives different fakes under a different salt', () => {

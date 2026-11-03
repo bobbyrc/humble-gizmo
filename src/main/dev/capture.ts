@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findChoiceOrders, parseMonthPage } from '../../core/choice'
-import { hasLeaks, sanitize } from '../../core/sanitize'
+import { hasLeaks, sanitizeWithOriginals } from '../../core/sanitize'
 import { HumbleApi } from '../humble/humbleApi'
 import { steamIdFromLoginCookie } from '../steam/steamId'
 import { SessionHttpClient } from '../net/sessionHttpClient'
@@ -47,9 +47,11 @@ function isChoiceOrder(o: unknown): boolean {
 
 /** Sanitizes, refuses to write if anything key- or email-shaped survived, then writes pretty JSON. */
 function save(name: string, raw: unknown, salt: string): void {
-  const clean = sanitize(raw, salt)
+  const { value: clean, originals } = sanitizeWithOriginals(raw, salt)
   const text = JSON.stringify(clean, null, 2) + '\n'
-  if (hasLeaks(text)) throw new Error(`refusing to write ${name}: sanitizer left a key or email`)
+  if (hasLeaks(text, originals)) {
+    throw new Error(`refusing to write ${name}: the leak guard found something real`)
+  }
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, name), text)
   console.log(`wrote ${name}`)
