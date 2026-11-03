@@ -425,7 +425,7 @@ must be visible.
     Settings field.
 - [ ] **Step 3:** Commit the plan update: `docs: record spike decisions`.
 
-**Checkpoint decisions:** _(filled in at Task 5)_
+**Checkpoint decisions:** Not yet made, because the owner was unavailable. Ruling R1: both Humble transports ship, selected by `HUMBLE_TRANSPORT` (default `'session'`), plus an owned-names chain WebToken → CommunityPage → ApiKey. Run `npm run probe`, then delete the unused code.
 
 ---
 
