@@ -4,9 +4,9 @@ import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { newKeysNotification } from '../shared/copy'
-import { SessionExpiredError } from '../shared/errors'
-import type { ReviewItem, Settings } from '../shared/types'
+import type { Settings } from '../shared/types'
 import { applyLinuxAutostart } from './autostart'
+import { createBackgroundCheck } from './backgroundCheck'
 import { startScheduler } from './scheduler'
 import { createTray } from './tray'
 import { runProbe } from './dev/probe'
@@ -57,27 +57,8 @@ async function openKeyStore(dir: string, codec: SecretCodec): Promise<KeyStore |
   }
 }
 
-/** The handlers hide error details behind a marker (they are made for IPC); recover the one case we act on. */
-function unwrapIpcError(e: unknown): unknown {
-  const msg = e instanceof Error ? e.message : ''
-  const at = msg.indexOf('GIZMO_ERR:')
-  if (at < 0) return e
-  try {
-    const info = JSON.parse(msg.slice(at + 'GIZMO_ERR:'.length)) as {
-      name?: string
-      service?: string | null
-    }
-    if (
-      info.name === 'SessionExpiredError' &&
-      (info.service === 'humble' || info.service === 'steam')
-    ) {
-      return new SessionExpiredError(info.service)
-    }
-  } catch {
-    // fall through
-  }
-  return e
-}
+// Kept until clicked or closed so Electron cannot collect them first.
+const liveNotifications = new Set<Notification>()
 
 async function start(): Promise<void> {
   installAppSessionGuard(session.defaultSession, () => ({
@@ -136,6 +117,7 @@ async function start(): Promise<void> {
   let quitting = false
   app.on('before-quit', () => {
     quitting = true
+    scheduler.stop()
   })
   let tray: { destroy(): void } | null = null
 
@@ -184,35 +166,25 @@ async function start(): Promise<void> {
     }
   }
 
-  // Scheduled checks only announce new keys: they load the library and build the review list,
-  // and never reveal or redeem anything.
-  let seen: Set<string> | null = null
-  const check = async (): Promise<number> => {
-    if (handlers.isRunActive()) return 0
-    let items: ReviewItem[]
-    try {
-      await handlers.loadLibrary()
-      items = await handlers.buildReview()
-    } catch (e) {
-      throw unwrapIpcError(e)
-    }
-    const current = new Set(items.filter((it) => it.group === 'will_redeem').map((it) => it.key.id))
-    const previous = seen
-    seen = current
-    if (previous === null) return 0
-    let fresh = 0
-    for (const id of current) if (!previous.has(id)) fresh++
-    return fresh
-  }
+  // Scheduled checks only announce new keys (see backgroundCheck.ts); they never reveal or redeem.
   const showNotification = (body: string): void => {
     if (!Notification.isSupported()) return
     const n = new Notification({ title: 'Humble Gizmo', body })
-    n.on('click', showWindow)
+    // Electron may garbage-collect a notification before the user clicks it.
+    liveNotifications.add(n)
+    n.on('click', () => {
+      liveNotifications.delete(n)
+      showWindow()
+    })
+    n.on('close', () => liveNotifications.delete(n))
     n.show()
   }
   const scheduler = startScheduler({
     getHours: () => settings.get().scheduleHours,
-    check,
+    check: createBackgroundCheck({
+      isRunActive: () => handlers.isRunActive(),
+      peekWillRedeemIds: () => handlers.peekWillRedeemIds()
+    }),
     notify: (n) => showNotification(newKeysNotification(n)),
     notifySignedOut: (s) =>
       showNotification(`Sign in to ${s === 'humble' ? 'Humble' : 'Steam'} again to keep checking.`),
@@ -234,6 +206,7 @@ async function start(): Promise<void> {
   })
   registerHandlers(ipcMain, handlers)
   applyTray(settings.get())
+  applyLaunchAtLogin(settings.get().launchAtLogin)
 
   open()
   app.on('activate', showWindow)

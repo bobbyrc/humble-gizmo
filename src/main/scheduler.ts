@@ -23,7 +23,10 @@ export function startScheduler(opts: SchedulerOptions): { stop(): void; reschedu
     handle = undefined
   }
 
+  let inFlight = false
+
   const tick = async (mine: number): Promise<void> => {
+    inFlight = true
     try {
       const n = await opts.check()
       if (n > 0) opts.notify(n)
@@ -31,6 +34,7 @@ export function startScheduler(opts: SchedulerOptions): { stop(): void; reschedu
       if (e instanceof SessionExpiredError) opts.notifySignedOut(e.service)
       // other failures (network, rate limits) are retried at the next interval
     } finally {
+      inFlight = false
       if (!stopped && generation === mine) arm()
     }
   }
@@ -38,14 +42,20 @@ export function startScheduler(opts: SchedulerOptions): { stop(): void; reschedu
   const arm = (): void => {
     disarm()
     const hours = opts.getHours()
-    if (stopped || hours === null || !(hours > 0)) return
+    if (stopped || hours === null || !Number.isFinite(hours)) return
+    const clamped = Math.min(24, Math.max(1, hours))
     const mine = ++generation
     handle = opts.setTimer(
       () => {
         handle = undefined
+        if (inFlight) {
+          // an earlier check (from before a reschedule) is still running; try again later
+          arm()
+          return
+        }
         void tick(mine)
       },
-      hours * 3600 * 1000
+      clamped * 3600 * 1000
     )
   }
 

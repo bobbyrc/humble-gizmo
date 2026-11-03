@@ -116,6 +116,25 @@ describe('startScheduler', () => {
     expect(t.live()).toHaveLength(0)
   })
 
+  it('clamps hours to [1, 24]', () => {
+    expect(setup(0.001, async () => 0).timers[0].ms).toBe(3600 * 1000)
+    expect(setup(1000, async () => 0).timers[0].ms).toBe(24 * 3600 * 1000)
+  })
+
+  it('never runs a second check while one is in flight', async () => {
+    let calls = 0
+    const t = setup(1, () => {
+      calls++
+      return new Promise<number>(() => undefined) // never settles
+    })
+    t.timers[0].fn()
+    t.s.reschedule()
+    t.live()[0].fn()
+    await t.flush()
+    expect(calls).toBe(1)
+    expect(t.live()).toHaveLength(1) // re-armed for later
+  })
+
   it('never imports or calls the runner', async () => {
     const src = await fs.readFile('src/main/scheduler.ts', 'utf8')
     expect(src).not.toMatch(/runner|startRun|revealKey|registerKey/i)

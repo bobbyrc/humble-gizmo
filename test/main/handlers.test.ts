@@ -509,3 +509,76 @@ describe('onSettingsChanged and isRunActive', () => {
     expect(h.isRunActive()).toBe(false)
   })
 })
+
+describe('peekWillRedeemIds and reset notification', () => {
+  it('returns ticked will_redeem ids without touching the user review cache', async () => {
+    const h = make()
+    const review = await h.buildReview()
+    const ids = review.filter((r) => r.tickable).map((r) => r.key.id)
+    const peeked = await h.peekWillRedeemIds()
+    expect(peeked.sort()).toEqual(
+      review
+        .filter((r) => r.group === 'will_redeem' && r.ticked)
+        .map((r) => r.key.id)
+        .sort()
+    )
+    expect(peeked.length).toBeGreaterThan(0)
+    await h.startRun(ids)
+    await h.__waitForRun()
+    expect(steam.registerKey).toHaveBeenCalled()
+  })
+
+  it('leaves the choice-months cache intact', async () => {
+    const choiceMonth: ChoiceMonth = {
+      gamekey: 'g1',
+      name: 'Choice',
+      choiceUrl: 'x',
+      created: '',
+      usesChoices: true,
+      choicesRemaining: 1,
+      parentIdentifier: 'p',
+      games: [{ identifier: 'ok', title: 'Ok', rating: null, claimable: true, gamekey: 'gk' }]
+    }
+    humble.getOrders.mockResolvedValue({
+      orders: [
+        {
+          gamekey: 'g1',
+          created: '2026-08-01T10:00:00.000000',
+          choices_remaining: 1,
+          product: { human_name: 'Choice', category: 'subscriptioncontent', choice_url: 'x' },
+          tpkd_dict: { all_tpks: [] }
+        }
+      ],
+      failed: []
+    })
+    humble.getChoiceMonth.mockResolvedValue(choiceMonth)
+    const h = make()
+    await h.listChoiceMonths()
+    await h.peekWillRedeemIds()
+    expect(await h.claimChoices('g1', ['ok'])).toEqual({ failed: [] })
+    expect(humble.chooseContent).toHaveBeenCalledTimes(1)
+  })
+
+  it('deleteAllData reports the default settings to onSettingsChanged', async () => {
+    const onSettingsChanged = vi.fn()
+    const h = createHandlers({
+      humble,
+      steam,
+      keys,
+      settings,
+      storageEncrypted: true,
+      platform,
+      clock,
+      onSettingsChanged
+    })
+    await h.setSettings({ scheduleHours: 6, keepInBackground: true, launchAtLogin: true })
+    onSettingsChanged.mockClear()
+    await h.deleteAllData()
+    expect(onSettingsChanged).toHaveBeenCalledTimes(1)
+    expect(onSettingsChanged.mock.calls[0][0]).toMatchObject({
+      scheduleHours: null,
+      keepInBackground: false,
+      launchAtLogin: false
+    })
+  })
+})

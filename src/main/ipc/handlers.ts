@@ -53,7 +53,12 @@ export type AppContext = {
  * GizmoApi plus a test hook that resolves when the current background run has settled, and
  * isRunActive (main-process only, not an IPC method).
  */
-export type Handlers = GizmoApi & { __waitForRun(): Promise<void>; isRunActive(): boolean }
+export type Handlers = GizmoApi & {
+  __waitForRun(): Promise<void>
+  isRunActive(): boolean
+  /** Ids of ticked will_redeem keys right now. Reads only and leaves every cache alone. */
+  peekWillRedeemIds(): Promise<string[]>
+}
 
 const ERR_MARKER = 'GIZMO_ERR:'
 
@@ -356,7 +361,12 @@ export function createHandlers(ctx: AppContext): Handlers {
       activeRunner?.stop()
       clearCaches()
       await keys.deleteAll()
-      await settings.update(DEFAULT_SETTINGS)
+      const reset = await settings.update(DEFAULT_SETTINGS)
+      try {
+        ctx.onSettingsChanged?.(reset)
+      } catch {
+        // the data is gone; a failing side effect must not fail the call
+      }
       await platform.signOut('humble').catch(() => undefined)
       await platform.signOut('steam').catch(() => undefined)
     },
@@ -364,7 +374,16 @@ export function createHandlers(ctx: AppContext): Handlers {
     checkForUpdatesNow: () => platform.checkForUpdates(),
     storageEncrypted: async () => ctx.storageEncrypted,
     __waitForRun: () => runDone,
-    isRunActive: () => activeRunner !== null
+    isRunActive: () => activeRunner !== null,
+    peekWillRedeemIds: async () => {
+      // Local variables only: the user's library, review and choice caches must stay as they are.
+      const gamekeys = await humble.listOrderGamekeys()
+      const { orders } = await humble.getOrders(gamekeys)
+      const owned = await steam.getOwned()
+      return buildReviewList(extractKeys(orders), owned, keys.all())
+        .filter((it) => it.group === 'will_redeem' && it.ticked)
+        .map((it) => it.key.id)
+    }
   }
 
   const wrapped = { ...api } as Record<string, unknown>
