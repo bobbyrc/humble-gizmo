@@ -21,9 +21,23 @@ const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' 
 export default function SignIn(): React.JSX.Element {
   const { go } = useNav()
   const [status, setStatus] = useState<Status | null>(null)
+  const [statusError, setStatusError] = useState<unknown>(null)
   const [pending, setPending] = useState<Record<Service, boolean>>({ humble: false, steam: false })
   const [phase, setPhase] = useState<Phase>('idle')
-  const started = useRef(false)
+  const phaseRef = useRef<Phase>('idle')
+  const inFlight = useRef(false)
+  const mounted = useRef(true)
+
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   const refreshStatus = useCallback(async (): Promise<void> => {
     try {
@@ -34,17 +48,26 @@ export default function SignIn(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
-    gizmo.status().then(setStatus, () => undefined)
+    gizmo.status().then(setStatus, setStatusError)
   }, [])
 
+  function retryStatus(): void {
+    setStatusError(null)
+    gizmo.status().then(setStatus, setStatusError)
+  }
+
   const load = useCallback((): void => {
+    if (inFlight.current) return
+    inFlight.current = true
     setPhase('loading')
     gizmo.loadLibrary().then(
       (summary) => {
-        setFreshLibrary(summary)
-        setPhase({ done: summary })
+        inFlight.current = false
+        if (mounted.current) setPhase({ done: summary })
       },
       (error: unknown) => {
+        inFlight.current = false
+        if (!mounted.current) return
         setPhase({ error })
         void refreshStatus()
       }
@@ -53,16 +76,16 @@ export default function SignIn(): React.JSX.Element {
 
   const bothIn = status !== null && status.humble && status.steam
   useEffect(() => {
-    if (bothIn && !started.current) {
-      started.current = true
-      load()
-    }
-  }, [bothIn, load])
+    if (bothIn && phase === 'idle') load()
+  }, [bothIn, phase, load])
 
-  const done = typeof phase === 'object' && 'done' in phase
+  const done = typeof phase === 'object' && 'done' in phase ? phase.done : null
   useEffect(() => {
     if (!done) return
-    const timer = setTimeout(() => go('review'), 1000)
+    const timer = setTimeout(() => {
+      setFreshLibrary(done)
+      go('review')
+    }, 1000)
     return () => clearTimeout(timer)
   }, [done, go])
 
@@ -70,7 +93,12 @@ export default function SignIn(): React.JSX.Element {
     setPending((p) => ({ ...p, [service]: true }))
     try {
       await gizmo.signIn(service)
-      await refreshStatus()
+      const s = await gizmo.status()
+      if (!mounted.current) return
+      setStatus(s)
+      const cur = phaseRef.current
+      const finished = typeof cur === 'object' && 'done' in cur
+      if (s.humble && s.steam && !finished) load()
     } catch {
       // A failed or cancelled sign-in leaves the card as it was.
     } finally {
@@ -82,7 +110,11 @@ export default function SignIn(): React.JSX.Element {
     return (
       <div className="screen-pad">
         <h1>Sign in to get started</h1>
-        <Spinner />
+        {statusError !== null ? (
+          <ErrorBanner error={statusError} onRetry={retryStatus} />
+        ) : (
+          <Spinner />
+        )}
       </div>
     )
   }
@@ -124,7 +156,7 @@ export default function SignIn(): React.JSX.Element {
           </>
         )}
         {typeof phase === 'object' && 'error' in phase && (
-          <ErrorBanner error={phase.error} onRetry={load} />
+          <ErrorBanner error={phase.error} onRetry={load} onSignIn={(s) => void signIn(s)} />
         )}
       </div>
     </div>

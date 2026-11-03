@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type { LibrarySummary } from '../../src/shared/ipc'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { serviceChanged } from '../../src/shared/copy'
 import { bridgeError, mockGizmo } from './mockGizmo'
@@ -86,7 +87,7 @@ describe('SignIn', () => {
   })
 
   it('shows the service-changed copy and stays put', async () => {
-    mockGizmo({
+    const g = mockGizmo({
       loadLibrary: vi.fn(async () => {
         throw bridgeError('ServiceChangedError', 'humble')
       })
@@ -94,6 +95,8 @@ describe('SignIn', () => {
     renderSignIn()
     expect(await screen.findByText(serviceChanged('Humble'))).toBeTruthy()
     expect(screen.getByTestId('where').textContent).toBe('signin')
+    fireEvent.click(screen.getByRole('button', { name: 'Get the latest version' }))
+    expect(g.openExternal).toHaveBeenCalledWith('https://github.com/bobbyrc/humble-gizmo/releases')
   })
 
   it('retries loadLibrary after a generic failure', async () => {
@@ -105,5 +108,57 @@ describe('SignIn', () => {
     renderSignIn()
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(loadLibrary).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('Found 0 Steam keys')).toBeTruthy()
+  })
+
+  function expiredLoad(): Mock<() => Promise<LibrarySummary>> {
+    return vi
+      .fn<() => Promise<LibrarySummary>>()
+      .mockRejectedValueOnce(bridgeError('SessionExpiredError', 'steam'))
+      .mockResolvedValue({ keys: 1, steamKeys: 1, failedOrders: 0 })
+  }
+
+  it('reloads after the card Sign in following a session-expired failure', async () => {
+    const loadLibrary = expiredLoad()
+    const status = vi
+      .fn()
+      .mockResolvedValueOnce({ humble: true, steam: true })
+      .mockResolvedValueOnce({ humble: true, steam: false })
+      .mockResolvedValue({ humble: true, steam: true })
+    mockGizmo({ status, loadLibrary })
+    renderSignIn()
+    await waitFor(() => expect(signInButton('Steam')).toBeTruthy())
+    fireEvent.click(signInButton('Steam'))
+    expect(await screen.findByText('Found 1 Steam key')).toBeTruthy()
+    expect(loadLibrary).toHaveBeenCalledTimes(2)
+  })
+
+  it('reloads after the error banner Sign in', async () => {
+    const loadLibrary = expiredLoad()
+    const g = mockGizmo({ loadLibrary })
+    renderSignIn()
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }))
+    await waitFor(() => expect(loadLibrary).toHaveBeenCalledTimes(2))
+    expect(g.signIn).toHaveBeenCalledWith('steam')
+  })
+
+  it('offers Retry when the first status check fails', async () => {
+    const status = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ humble: false, steam: false })
+    mockGizmo({ status })
+    renderSignIn()
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Sign in' })).toHaveLength(2))
+  })
+
+  it('hands nothing to Review when unmounted before the timer fires', async () => {
+    mockGizmo({ loadLibrary: vi.fn(async () => ({ keys: 1, steamKeys: 1, failedOrders: 0 })) })
+    renderSignIn()
+    await screen.findByText('Found 1 Steam key')
+    cleanup()
+    await new Promise((r) => setTimeout(r, 1100))
+    expect(takeFreshLibrary()).toBeNull()
   })
 })

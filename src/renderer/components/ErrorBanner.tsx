@@ -13,11 +13,13 @@ function fire(call: () => Promise<unknown>): void {
 export default function ErrorBanner({
   error,
   onRetry,
-  retryLabel = 'Retry'
+  retryLabel = 'Retry',
+  onSignIn
 }: {
   error: unknown
   onRetry: () => void
   retryLabel?: string
+  onSignIn?: (service: 'humble' | 'steam') => void
 }): React.JSX.Element {
   const name = errorName(error)
   const service = errorService(error) ?? 'humble'
@@ -39,7 +41,10 @@ export default function ErrorBanner({
     return (
       <Banner
         tone="danger"
-        action={{ label: 'Sign in', onClick: () => fire(async () => gizmo.signIn(service)) }}
+        action={{
+          label: 'Sign in',
+          onClick: () => (onSignIn ? onSignIn(service) : fire(async () => gizmo.signIn(service)))
+        }}
       >
         {`Sign in to ${label} again`}
       </Banner>
