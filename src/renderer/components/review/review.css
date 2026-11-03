@@ -1,0 +1,69 @@
+.screen-pad {
+  padding: var(--s5);
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.screen-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s4);
+}
+.screen-header h1 {
+  font-size: var(--fs-xl);
+  margin: 0;
+  margin-right: auto;
+}
+.vrows {
+  position: relative;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.vrows-spacer {
+  position: relative;
+}
+.review-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--row-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s3);
+  border-bottom: 1px solid var(--border);
+}
+.review-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-row-muted label {
+  color: var(--text-muted);
+}
+.review-row-pills {
+  display: flex;
+  gap: var(--s1);
+  flex: none;
+}
+.run-list {
+  list-style: none;
+  margin: var(--s4) 0 0;
+  padding: 0;
+}
+.run-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  min-height: var(--row-h);
+  border-bottom: 1px solid var(--border);
+}
+.review-empty {
+  color: var(--text-muted);
+}
