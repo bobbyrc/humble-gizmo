@@ -483,3 +483,29 @@ describe('fix round 1', () => {
     expect(await h({ senderFrame: { url: 'file:///app/index.html' } })).toBe(true)
   })
 })
+
+describe('onSettingsChanged and isRunActive', () => {
+  it('calls onSettingsChanged with the saved settings after setSettings', async () => {
+    const onSettingsChanged = vi.fn()
+    const h = createHandlers({
+      humble,
+      steam,
+      keys,
+      settings,
+      storageEncrypted: true,
+      platform,
+      clock,
+      onSettingsChanged
+    })
+    const saved = await h.setSettings({ scheduleHours: 6, keepInBackground: true })
+    expect(onSettingsChanged).toHaveBeenCalledTimes(1)
+    expect(onSettingsChanged).toHaveBeenCalledWith(saved)
+    expect(saved.scheduleHours).toBe(6)
+  })
+
+  it('works without onSettingsChanged and reports no active run initially', async () => {
+    const h = make()
+    await expect(h.setSettings({ scheduleHours: 1 })).resolves.toMatchObject({ scheduleHours: 1 })
+    expect(h.isRunActive()).toBe(false)
+  })
+})

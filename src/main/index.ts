@@ -1,6 +1,14 @@
-import { app, BrowserWindow, dialog, ipcMain, powerSaveBlocker, session, shell } from 'electron'
+import { app, dialog, ipcMain, Notification, powerSaveBlocker, session, shell } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { newKeysNotification } from '../shared/copy'
+import { SessionExpiredError } from '../shared/errors'
+import type { ReviewItem, Settings } from '../shared/types'
+import { applyLinuxAutostart } from './autostart'
+import { startScheduler } from './scheduler'
+import { createTray } from './tray'
 import { runProbe } from './dev/probe'
 import { createAppWindow } from './windows/appWindow'
 import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
@@ -47,6 +55,28 @@ async function openKeyStore(dir: string, codec: SecretCodec): Promise<KeyStore |
     }
     return KeyStore.open(dir, codec)
   }
+}
+
+/** The handlers hide error details behind a marker (they are made for IPC); recover the one case we act on. */
+function unwrapIpcError(e: unknown): unknown {
+  const msg = e instanceof Error ? e.message : ''
+  const at = msg.indexOf('GIZMO_ERR:')
+  if (at < 0) return e
+  try {
+    const info = JSON.parse(msg.slice(at + 'GIZMO_ERR:'.length)) as {
+      name?: string
+      service?: string | null
+    }
+    if (
+      info.name === 'SessionExpiredError' &&
+      (info.service === 'humble' || info.service === 'steam')
+    ) {
+      return new SessionExpiredError(info.service)
+    }
+  } catch {
+    // fall through
+  }
+  return e
 }
 
 async function start(): Promise<void> {
@@ -103,18 +133,110 @@ async function start(): Promise<void> {
     checkForUpdates: async () => 'error' // stub until Task 25
   }
 
-  registerHandlers(
-    ipcMain,
-    createHandlers({ humble, steam, keys, settings, storageEncrypted: codec.encrypted, platform })
-  )
+  let quitting = false
+  app.on('before-quit', () => {
+    quitting = true
+  })
+  let tray: { destroy(): void } | null = null
 
   const open = (): void => {
-    appWindow = createAppWindow()
+    const win = createAppWindow()
+    appWindow = win
+    // With keepInBackground (and a tray to bring it back) closing only hides the window.
+    win.on('close', (e) => {
+      if (!quitting && tray && settings.get().keepInBackground) {
+        e.preventDefault()
+        win.hide()
+      }
+    })
+    win.on('closed', () => {
+      if (appWindow === win) appWindow = null
+    })
   }
-  open()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) open()
+  const showWindow = (): void => {
+    if (!appWindow || appWindow.isDestroyed()) {
+      open()
+      return
+    }
+    if (appWindow.isMinimized()) appWindow.restore()
+    appWindow.show()
+    appWindow.focus()
+  }
+
+  const applyTray = (s: Settings): void => {
+    if (s.keepInBackground && !tray) {
+      tray = createTray(showWindow, () => {
+        quitting = true
+        app.quit()
+      })
+    } else if (!s.keepInBackground && tray) {
+      tray.destroy()
+      tray = null
+      // The window may be hidden; make sure the user is not left with no way back in.
+      if (appWindow && !appWindow.isDestroyed() && !appWindow.isVisible()) showWindow()
+    }
+  }
+  const applyLaunchAtLogin = (enabled: boolean): void => {
+    if (process.platform === 'linux') {
+      void applyLinuxAutostart(enabled, homedir(), process.execPath).catch(() => undefined)
+    } else {
+      app.setLoginItemSettings({ openAtLogin: enabled })
+    }
+  }
+
+  // Scheduled checks only announce new keys: they load the library and build the review list,
+  // and never reveal or redeem anything.
+  let seen: Set<string> | null = null
+  const check = async (): Promise<number> => {
+    if (handlers.isRunActive()) return 0
+    let items: ReviewItem[]
+    try {
+      await handlers.loadLibrary()
+      items = await handlers.buildReview()
+    } catch (e) {
+      throw unwrapIpcError(e)
+    }
+    const current = new Set(items.filter((it) => it.group === 'will_redeem').map((it) => it.key.id))
+    const previous = seen
+    seen = current
+    if (previous === null) return 0
+    let fresh = 0
+    for (const id of current) if (!previous.has(id)) fresh++
+    return fresh
+  }
+  const showNotification = (body: string): void => {
+    if (!Notification.isSupported()) return
+    const n = new Notification({ title: 'Humble Gizmo', body })
+    n.on('click', showWindow)
+    n.show()
+  }
+  const scheduler = startScheduler({
+    getHours: () => settings.get().scheduleHours,
+    check,
+    notify: (n) => showNotification(newKeysNotification(n)),
+    notifySignedOut: (s) =>
+      showNotification(`Sign in to ${s === 'humble' ? 'Humble' : 'Steam'} again to keep checking.`),
+    setTimer: setTimeout
   })
+
+  const handlers = createHandlers({
+    humble,
+    steam,
+    keys,
+    settings,
+    storageEncrypted: codec.encrypted,
+    platform,
+    onSettingsChanged: (s) => {
+      scheduler.reschedule()
+      applyTray(s)
+      applyLaunchAtLogin(s.launchAtLogin)
+    }
+  })
+  registerHandlers(ipcMain, handlers)
+  applyTray(settings.get())
+
+  open()
+  app.on('activate', showWindow)
   app.on('second-instance', () => {
     if (!appWindow || appWindow.isDestroyed()) return
     if (appWindow.isMinimized()) appWindow.restore()

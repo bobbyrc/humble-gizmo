@@ -14,7 +14,8 @@ import {
   type Ownership,
   type ReviewItem,
   type RunEvent,
-  type Service
+  type Service,
+  type Settings
 } from '../../shared/types'
 import type { HumbleApi } from '../humble/humbleApi'
 import type { SteamApi } from '../steam/steamApi'
@@ -44,10 +45,15 @@ export type AppContext = {
   storageEncrypted: boolean
   platform: Platform
   clock?: Clock
+  /** Called after setSettings succeeds, with the saved settings. */
+  onSettingsChanged?: (s: Settings) => void
 }
 
-/** GizmoApi plus a test hook that resolves when the current background run has settled. */
-export type Handlers = GizmoApi & { __waitForRun(): Promise<void> }
+/**
+ * GizmoApi plus a test hook that resolves when the current background run has settled, and
+ * isRunActive (main-process only, not an IPC method).
+ */
+export type Handlers = GizmoApi & { __waitForRun(): Promise<void>; isRunActive(): boolean }
 
 const ERR_MARKER = 'GIZMO_ERR:'
 
@@ -159,7 +165,15 @@ export function createHandlers(ctx: AppContext): Handlers {
 
   const api: Handlers = {
     getSettings: async () => settings.get(),
-    setSettings: (patch) => settings.update(patch),
+    setSettings: async (patch) => {
+      const saved = await settings.update(patch)
+      try {
+        ctx.onSettingsChanged?.(saved)
+      } catch {
+        // the settings are saved; a failing side effect must not fail the call
+      }
+      return saved
+    },
     signIn: (s) => platform.openSignIn(s),
     signOut: async (s) => {
       await platform.signOut(s)
@@ -349,7 +363,8 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     checkForUpdatesNow: () => platform.checkForUpdates(),
     storageEncrypted: async () => ctx.storageEncrypted,
-    __waitForRun: () => runDone
+    __waitForRun: () => runDone,
+    isRunActive: () => activeRunner !== null
   }
 
   const wrapped = { ...api } as Record<string, unknown>
