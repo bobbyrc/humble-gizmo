@@ -1,10 +1,14 @@
 import type { Session } from 'electron'
+import { posix, win32 } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export interface AllowlistOpts {
   updatesAllowed: boolean
   devServer?: boolean
   // Absolute path of the app's own files. `file:` URLs are allowed only under this root.
   appFileRoot?: string
+  // Defaults from process.platform. Overridable so Windows paths can be tested elsewhere.
+  platform?: 'win32' | 'posix'
 }
 
 // A host is allowed when it equals one of these or is a subdomain of one (dot boundary).
@@ -28,28 +32,22 @@ function hostIsOrUnder(host: string, domain: string): boolean {
   return host === domain || host.endsWith(`.${domain}`)
 }
 
-// Resolves `.` and `..` segments and collapses slashes. Returns an absolute POSIX-style path.
-function normalizePath(path: string): string {
-  const out: string[] = []
-  for (const segment of path.split('/')) {
-    if (segment === '' || segment === '.') continue
-    if (segment === '..') out.pop()
-    else out.push(segment)
-  }
-  return `/${out.join('/')}`
-}
-
-function isAppFile(parsed: URL, appFileRoot: string | undefined): boolean {
-  if (!appFileRoot || parsed.hostname !== '') return false
-  let decoded: string
+function isAppFile(parsed: URL, opts: AllowlistOpts): boolean {
+  const appRoot = opts.appFileRoot
+  if (!appRoot || parsed.hostname !== '') return false
+  const platform = opts.platform ?? (process.platform === 'win32' ? 'win32' : 'posix')
+  const looksWindows = /^[a-zA-Z]:[\\/]/.test(appRoot) || appRoot.startsWith('\\\\')
+  const p = looksWindows ? win32 : posix
+  const fold = (s: string): string => (p === win32 ? s.toLowerCase() : s)
   try {
-    decoded = decodeURIComponent(parsed.pathname)
+    const filePath = p.resolve(fileURLToPath(parsed, { windows: platform === 'win32' }))
+    const root = fold(p.resolve(appRoot))
+    const file = fold(filePath)
+    const prefix = root.endsWith(p.sep) ? root : root + p.sep
+    return file === root || file.startsWith(prefix)
   } catch {
     return false
   }
-  const root = normalizePath(appFileRoot)
-  const prefix = root.endsWith('/') ? root : `${root}/`
-  return normalizePath(decoded).startsWith(prefix)
 }
 
 export function isAllowedUrl(url: string, opts: AllowlistOpts): boolean {
@@ -62,7 +60,7 @@ export function isAllowedUrl(url: string, opts: AllowlistOpts): boolean {
 
   switch (parsed.protocol) {
     case 'file:':
-      return isAppFile(parsed, opts.appFileRoot)
+      return isAppFile(parsed, opts)
     case 'devtools:':
     case 'data:':
       return true

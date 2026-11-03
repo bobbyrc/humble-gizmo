@@ -120,3 +120,39 @@ describe('installAppSessionGuard', () => {
     vi.restoreAllMocks()
   })
 })
+
+describe('isAllowedUrl with a Windows app root', () => {
+  const winOpts = {
+    updatesAllowed: false,
+    appFileRoot: 'C:\\App\\resources\\app.asar',
+    platform: 'win32' as const
+  }
+
+  it('allows file URLs under the Windows app root', () => {
+    expect(isAllowedUrl('file:///C:/App/resources/app.asar/out/renderer/index.html', winOpts)).toBe(
+      true
+    )
+  })
+
+  it('matches the Windows drive letter and path case-insensitively', () => {
+    expect(isAllowedUrl('file:///c:/app/resources/app.asar/out/renderer/index.html', winOpts)).toBe(
+      true
+    )
+  })
+
+  it('denies a sibling that only shares the root prefix', () => {
+    expect(isAllowedUrl('file:///C:/App/resources/app.asar-evil/x', winOpts)).toBe(false)
+  })
+
+  it('denies other paths on the same drive', () => {
+    expect(isAllowedUrl('file:///C:/Windows/system32/x', winOpts)).toBe(false)
+  })
+
+  it('denies dot-dot traversal out of the root', () => {
+    expect(isAllowedUrl('file:///C:/App/resources/app.asar/../../secret', winOpts)).toBe(false)
+  })
+
+  it('denies file URLs that carry a host', () => {
+    expect(isAllowedUrl('file://evil/C:/App/resources/app.asar/x', winOpts)).toBe(false)
+  })
+})
