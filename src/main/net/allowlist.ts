@@ -65,6 +65,7 @@ export function isAllowedUrl(url: string, opts: AllowlistOpts): boolean {
     case 'data:':
       return true
     case 'http:':
+    case 'ws:':
       return opts.devServer === true && parsed.hostname === 'localhost'
     case 'https:':
       break

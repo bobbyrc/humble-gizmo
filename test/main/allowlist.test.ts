@@ -54,6 +54,10 @@ describe('isAllowedUrl', () => {
     expect(isAllowedUrl('http://localhost:5173/', off)).toBe(false)
     expect(isAllowedUrl('http://localhost:5173/', { ...off, devServer: false })).toBe(false)
     expect(isAllowedUrl('http://localhost:5173/', { ...off, devServer: true })).toBe(true)
+    expect(isAllowedUrl('ws://localhost:5173/?token=abc', { ...off, devServer: false })).toBe(false)
+    expect(isAllowedUrl('ws://localhost:5173/?token=abc', { ...off, devServer: true })).toBe(true)
+    expect(isAllowedUrl('ws://example.com/', { ...off, devServer: true })).toBe(false)
+    expect(isAllowedUrl('wss://localhost:5173/', { ...off, devServer: true })).toBe(false)
   })
 
   it('allows devtools and data schemes', () => {
