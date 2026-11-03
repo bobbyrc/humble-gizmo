@@ -6,7 +6,8 @@ export const APP_WINDOW_WEB_PREFERENCES: WebPreferences = {
   preload: join(__dirname, '../preload/index.js'),
   contextIsolation: true,
   nodeIntegration: false,
-  sandbox: true
+  sandbox: true,
+  spellcheck: false
 }
 
 export function createAppWindow(): BrowserWindow {

@@ -82,7 +82,8 @@ async function probeHumble(report: Report): Promise<void> {
         partition: PARTITIONS.humble,
         sandbox: true,
         contextIsolation: true,
-        nodeIntegration: false
+        nodeIntegration: false,
+        spellcheck: false
       }
     })
     try {

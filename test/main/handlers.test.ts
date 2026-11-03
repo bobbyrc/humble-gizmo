@@ -236,6 +236,25 @@ describe('history and export', () => {
     expect(hist.every((r) => r.revealedKey === null)).toBe(true)
   })
 
+  it('history omits records that only the CSV export created', async () => {
+    const base = { name: 'n', steamAppId: 1, revealedKey: GOOD_KEY, resultCode: null }
+    await keys.upsert({
+      ...base,
+      id: 'e',
+      outcome: 'pending',
+      runId: 'export',
+      updatedAt: '2026-03-01T00:00:00.000Z'
+    })
+    await keys.upsert({
+      ...base,
+      id: 'p',
+      outcome: 'pending',
+      runId: 'real-run',
+      updatedAt: '2026-02-01T00:00:00.000Z'
+    })
+    expect((await make().history()).map((r) => r.id)).toEqual(['p'])
+  })
+
   const opts = {
     steamOnly: true,
     includeRevealed: true,
@@ -465,10 +484,49 @@ describe('fix round 1', () => {
     const review = await h.buildReview()
     await h.startRun(review.map((r) => r.key.id))
     await vi.waitFor(() => expect(steam.registerKey).toHaveBeenCalled())
-    await h.deleteAllData()
+    const deleting = h.deleteAllData()
     release(1)
+    await deleting
     await h.__waitForRun()
     expect(events.at(-1)).toMatchObject({ type: 'stopped', reason: 'user' })
+  })
+
+  it('deleteAllData waits for the run to settle, so no upsert lands after the wipe', async () => {
+    let release: (n: number) => void = () => undefined
+    steam.registerKey.mockImplementation(() => new Promise<number>((r) => (release = r)))
+    const h = make()
+    const review = await h.buildReview()
+    await h.startRun(review.map((r) => r.key.id))
+    await vi.waitFor(() => expect(steam.registerKey).toHaveBeenCalled())
+    let done = false
+    const deleting = h.deleteAllData().then(() => (done = true))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(done).toBe(false) // still waiting for the in-flight attempt
+    release(1) // the attempt completes and the runner records it
+    await deleting
+    expect(keys.all().size).toBe(0)
+    await h.__waitForRun()
+    expect(keys.all().size).toBe(0)
+  })
+
+  it('calls onDataReset after deleteAllData and after a Humble sign-out only', async () => {
+    const onDataReset = vi.fn()
+    const h = createHandlers({
+      humble,
+      steam,
+      keys,
+      settings,
+      storageEncrypted: true,
+      platform,
+      clock,
+      onDataReset
+    })
+    await h.signOut('steam')
+    expect(onDataReset).not.toHaveBeenCalled()
+    await h.signOut('humble')
+    expect(onDataReset).toHaveBeenCalledTimes(1)
+    await h.deleteAllData()
+    expect(onDataReset).toHaveBeenCalledTimes(2)
   })
 
   it('registerHandlers rejects untrusted senders', async () => {

@@ -1,6 +1,6 @@
 import type { IpcMain } from 'electron'
 import { extractKeys, steamKeys } from '../../core/keys'
-import { buildReviewList } from '../../core/review'
+import { buildReviewList, EXPORT_RUN_ID } from '../../core/review'
 import { classifyOwnership } from '../../core/ownership'
 import { findChoiceOrders } from '../../core/choice'
 import { selectExportKeys, toExportCsv } from '../../core/export'
@@ -47,6 +47,8 @@ export type AppContext = {
   clock?: Clock
   /** Called after setSettings succeeds, with the saved settings. */
   onSettingsChanged?: (s: Settings) => void
+  /** Called after Delete all data and after a Humble sign-out: anything derived from the account is stale. */
+  onDataReset?: () => void
 }
 
 /**
@@ -182,7 +184,10 @@ export function createHandlers(ctx: AppContext): Handlers {
     signIn: (s) => platform.openSignIn(s),
     signOut: async (s) => {
       await platform.signOut(s)
-      if (s === 'humble') clearCaches()
+      if (s === 'humble') {
+        clearCaches()
+        ctx.onDataReset?.()
+      }
     },
     status: async () => {
       const [humbleIn, steamIn] = await Promise.all([
@@ -312,6 +317,7 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     history: async () =>
       [...keys.all().values()]
+        .filter((r) => !(r.outcome === 'pending' && r.runId === EXPORT_RUN_ID))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .map((r) => ({ ...r, revealedKey: null })),
 
@@ -335,7 +341,7 @@ export function createHandlers(ctx: AppContext): Handlers {
               revealedKey: v,
               outcome: 'pending',
               resultCode: null,
-              runId: 'export',
+              runId: EXPORT_RUN_ID,
               updatedAt: clock.now().toISOString()
             })
           }
@@ -359,8 +365,11 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     deleteAllData: async () => {
       activeRunner?.stop()
+      // The runner may still be mid-attempt; wait so its last upsert cannot land after the wipe.
+      await runDone
       clearCaches()
       await keys.deleteAll()
+      ctx.onDataReset?.()
       const reset = await settings.update(DEFAULT_SETTINGS)
       try {
         ctx.onSettingsChanged?.(reset)

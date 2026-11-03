@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildReviewList } from '../../src/core/review'
+import { buildReviewList, EXPORT_RUN_ID } from '../../src/core/review'
 import type { HumbleKey, KeyRecord, Outcome, OwnedData } from '../../src/shared/types'
 
 let seq = 0
@@ -247,5 +247,24 @@ describe('buildReviewList', () => {
     const ms = performance.now() - t0
     expect(out).toHaveLength(3000)
     expect(ms).toBeLessThan(2000)
+  })
+})
+
+describe('export-pending records', () => {
+  it('are ignored: an owned key stays owned and unticked', () => {
+    const k = makeKey('Owned Game', { steamAppId: 7 })
+    const exportPending = { ...rec(k, 'pending', null), runId: EXPORT_RUN_ID }
+    const items = buildReviewList([k], ownedOf([7, 'Owned Game']), new Map([[k.id, exportPending]]))
+    expect(items[0]).toMatchObject({ group: 'owned', ticked: false })
+  })
+
+  it('a pending record from a real run still means will_redeem', () => {
+    const k = makeKey('Owned Game 2', { steamAppId: 8 })
+    const items = buildReviewList(
+      [k],
+      ownedOf([8, 'Owned Game 2']),
+      new Map([[k.id, rec(k, 'pending', null)]])
+    )
+    expect(items[0]).toMatchObject({ group: 'will_redeem', ticked: true })
   })
 })

@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { applyLinuxAutostart } from '../../src/main/autostart'
+import { applyLinuxAutostart, linuxExecPath } from '../../src/main/autostart'
 
 let home: string
 beforeEach(async () => {
@@ -27,5 +27,14 @@ describe('applyLinuxAutostart', () => {
     await applyLinuxAutostart(false, home, '/x/gizmo')
     await expect(fs.stat(file())).rejects.toThrow()
     await expect(applyLinuxAutostart(false, home, '/x/gizmo')).resolves.toBeUndefined()
+  })
+})
+
+describe('linuxExecPath', () => {
+  it('prefers the AppImage path over the temporary mount binary', () => {
+    expect(
+      linuxExecPath({ APPIMAGE: '/home/u/Gizmo.AppImage' }, '/tmp/.mount_x/humble-gizmo')
+    ).toBe('/home/u/Gizmo.AppImage')
+    expect(linuxExecPath({}, '/opt/gizmo/humble-gizmo')).toBe('/opt/gizmo/humble-gizmo')
   })
 })

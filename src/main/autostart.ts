@@ -1,6 +1,11 @@
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 
+/** AppImages run from a temporary mount, so autostart must point at the AppImage file itself. */
+export function linuxExecPath(env: NodeJS.ProcessEnv, execPath: string): string {
+  return env.APPIMAGE ?? execPath
+}
+
 /** Write or remove the XDG autostart entry (Linux only; macOS/Windows use app.setLoginItemSettings). */
 export async function applyLinuxAutostart(
   enabled: boolean,

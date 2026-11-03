@@ -8,7 +8,7 @@ function setup(initial: string[][]): {
 } {
   const queue = [...initial]
   const state = { active: false, calls: 0 }
-  const check = createBackgroundCheck({
+  const { check } = createBackgroundCheck({
     isRunActive: () => state.active,
     peekWillRedeemIds: async () => {
       state.calls++
@@ -44,7 +44,7 @@ describe('createBackgroundCheck', () => {
 
   it('discards the result when a run started during the peek', async () => {
     const state = { active: false }
-    const check = createBackgroundCheck({
+    const { check } = createBackgroundCheck({
       isRunActive: () => state.active,
       peekWillRedeemIds: async () => {
         state.active = true
@@ -58,7 +58,7 @@ describe('createBackgroundCheck', () => {
   })
 
   it('turns a marked IPC error back into SessionExpiredError', async () => {
-    const check = createBackgroundCheck({
+    const { check } = createBackgroundCheck({
       isRunActive: () => false,
       peekWillRedeemIds: async () => {
         throw new Error('GIZMO_ERR:{"name":"SessionExpiredError","service":"steam"}')
@@ -74,5 +74,17 @@ describe('unwrapIpcError', () => {
     expect(unwrapIpcError(e)).toBe(e)
     const m = new Error('GIZMO_ERR:{"name":"ServiceChangedError","service":"humble"}')
     expect(unwrapIpcError(m)).toBe(m)
+  })
+
+  it('reset forgets the baseline so the next check only re-baselines', async () => {
+    const queue = [['a'], ['a', 'b'], ['a', 'b', 'c']]
+    const { check, reset } = createBackgroundCheck({
+      isRunActive: () => false,
+      peekWillRedeemIds: async () => queue.shift() ?? []
+    })
+    await check()
+    reset()
+    expect(await check()).toBe(0) // would have been 1 without the reset
+    expect(await check()).toBe(1)
   })
 })

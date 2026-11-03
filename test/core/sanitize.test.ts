@@ -88,6 +88,13 @@ describe('sanitize', () => {
     expect(hasLeaks('clean', new Set(['Zq9xKpLm']))).toBe(false)
   })
 
+  it('hasLeaks flags an original in its JSON-escaped form', () => {
+    const original = 'say "hi" \\ there'
+    const text = JSON.stringify({ v: original })
+    expect(text.includes(original)).toBe(false)
+    expect(hasLeaks(text, new Set([original]))).toBe(true)
+  })
+
   it('hasLeaks flags IPv4 addresses', () => {
     expect(hasLeaks('{"ip":"203.0.113.7"}', new Set())).toBe(true)
   })

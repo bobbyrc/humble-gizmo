@@ -1,4 +1,5 @@
 import { BrowserWindow, session, shell } from 'electron'
+import { checkSignedInWith } from './checkSignedInWith'
 import type { Service } from '../../shared/types'
 import {
   PARTITIONS,
@@ -35,7 +36,8 @@ export function openSignInWindow(service: Service, parent?: BrowserWindow): Prom
         partition: PARTITIONS[service],
         sandbox: true,
         contextIsolation: true,
-        nodeIntegration: false
+        nodeIntegration: false,
+        spellcheck: false
       }
     })
     let settled = false
@@ -75,10 +77,7 @@ export function openSignInWindow(service: Service, parent?: BrowserWindow): Prom
 
 /** Signed in when the status page loads directly instead of redirecting to a login page. */
 export async function checkSignedIn(service: Service): Promise<boolean> {
-  const res = await session
-    .fromPartition(PARTITIONS[service])
-    .fetch(STATUS_URLS[service], { redirect: 'manual' })
-  return !(res.status === 301 || res.status === 302 || res.type === 'opaqueredirect')
+  return checkSignedInWith(session.fromPartition(PARTITIONS[service]), STATUS_URLS[service])
 }
 
 export async function signOut(service: Service): Promise<void> {
