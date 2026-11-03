@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check tag matches package.json version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node -e "const v=require('./package.json').version;const t=process.env.TAG.replace(/^v/,'');if(v!==t){console.error('Tag '+process.env.TAG+' does not match package.json version '+v);process.exit(1)}"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -31,8 +36,9 @@ jobs:
         if: runner.os == 'macOS'
         env:
           APPLE_API_KEY_CONTENTS: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
         run: |
-          key_path="$RUNNER_TEMP/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8"
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           printf '%s\n' "$APPLE_API_KEY_CONTENTS" > "$key_path"
           chmod 600 "$key_path"
           echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"

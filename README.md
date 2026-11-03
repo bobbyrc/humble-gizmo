@@ -5,11 +5,11 @@ at a time.
 
 ## Download
 
-Pick your system. Each link opens the latest release page; download the file for your system.
+Pick your system. If a link does not work, use the [latest release page](https://github.com/bobbyrc/humble-gizmo/releases/latest).
 
-- [Download for macOS](https://github.com/bobbyrc/humble-gizmo/releases/latest) (the `.dmg` file)
-- [Download for Windows](https://github.com/bobbyrc/humble-gizmo/releases/latest) (the `-setup.exe` file)
-- [Download for Linux](https://github.com/bobbyrc/humble-gizmo/releases/latest) (the `.AppImage` file)
+- [Download for macOS](https://github.com/bobbyrc/humble-gizmo/releases/latest/download/Humble-Gizmo-mac.dmg) (`.dmg`, Apple Silicon and Intel)
+- [Download for Windows](https://github.com/bobbyrc/humble-gizmo/releases/latest/download/Humble-Gizmo-Setup.exe) (`.exe` installer)
+- [Download for Linux](https://github.com/bobbyrc/humble-gizmo/releases/latest/download/Humble-Gizmo.AppImage) (`.AppImage`)
 
 ## Is it safe?
 

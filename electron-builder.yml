@@ -8,27 +8,29 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{docs,tasks,test,.github,.superpowers}/**'
+  - '!{vitest.config.ts,tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
 mac:
   target:
     - target: dmg
       arch: universal
+    - target: zip
+      arch: universal
   category: public.app-category.utilities
+  artifactName: Humble-Gizmo-mac.${ext}
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   notarize: true
-dmg:
-  artifactName: ${name}-${version}-mac.${ext}
 win:
   target:
     - target: nsis
       arch: x64
   executableName: humble-gizmo
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: Humble-Gizmo-Setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -38,7 +40,7 @@ linux:
       arch: x64
   category: Utility
 appImage:
-  artifactName: ${name}-${version}-linux.${ext}
+  artifactName: Humble-Gizmo.${ext}
 npmRebuild: false
 publish:
   provider: github
