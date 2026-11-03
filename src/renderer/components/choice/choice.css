@@ -1,0 +1,59 @@
+.choice-month {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s4);
+  margin-bottom: var(--s4);
+}
+.choice-month-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+.choice-month-name {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.choice-muted {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.choice-games {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.choice-game {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--border);
+}
+.choice-game > .choice-muted {
+  margin-left: auto;
+}
+.choice-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+.choice-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s4);
+}
+.choice-header h1 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+.choice-failed {
+  margin: var(--s1) 0 0;
+  padding-left: var(--s4);
+}
