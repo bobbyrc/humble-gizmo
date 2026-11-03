@@ -1,0 +1,217 @@
+.btn {
+  height: 36px;
+  padding: 0 var(--s4);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font: 600 var(--fs-md)/1 var(--font);
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+.btn-link {
+  background: transparent;
+  color: var(--accent);
+  padding: 0 var(--s2);
+}
+.btn-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  cursor: pointer;
+}
+.checkbox input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.pill {
+  display: inline-block;
+  border-radius: 12px;
+  padding: 2px var(--s3);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.pill-warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.pill-muted {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.pill-danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.pill-ok {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius);
+  padding: var(--s4);
+}
+.banner-warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.banner-danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.banner-ok {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+.section {
+  border-bottom: 1px solid var(--border);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: var(--row-h);
+  background: transparent;
+  border: 0;
+  padding: 0 var(--s2);
+  color: var(--text);
+  font: 400 var(--fs-md)/1.45 var(--font);
+  cursor: pointer;
+  text-align: left;
+}
+.section-chevron {
+  display: inline-block;
+  width: 12px;
+  transition: transform 0.12s;
+}
+.section-head[aria-expanded='true'] .section-chevron {
+  transform: rotate(90deg);
+}
+.section-label {
+  font-weight: 600;
+}
+.section-count,
+.section-hint {
+  color: var(--text-muted);
+}
+.section-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+}
+.section-body {
+  padding: 0 var(--s2) var(--s3);
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.dialog {
+  width: 440px;
+  max-width: calc(100vw - var(--s6));
+  box-sizing: border-box;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s5);
+}
+.dialog-title {
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.dialog-body {
+  margin-bottom: var(--s4);
+}
+.dialog-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 var(--s3);
+  margin-bottom: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--text-muted);
+}
+.spinner-ring {
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spinner-turn 0.8s linear infinite;
+}
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner-ring {
+    border: 0;
+    background: var(--accent);
+    width: 6px;
+    height: 6px;
+    margin: 5px;
+  }
+}
