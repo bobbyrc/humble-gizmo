@@ -17,7 +17,7 @@ const nonZeroNumber = (value: unknown): number | null =>
  * Throws SessionExpiredError when Steam is redirecting or refusing the session.
  */
 export function parseRegisterKeyResponse(status: number, body: string): number {
-  if (status === 401 || status === 403 || (status >= 300 && status < 400)) {
+  if (status === 0 || status === 401 || status === 403 || (status >= 300 && status < 400)) {
     throw new SessionExpiredError('steam')
   }
 

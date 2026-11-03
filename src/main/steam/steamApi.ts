@@ -3,7 +3,8 @@ import { parseRegisterKeyResponse } from '../../core/steamCodes'
 import { ServiceChangedError, SessionExpiredError } from '../../shared/errors'
 import type { OwnedData } from '../../shared/types'
 import type { HttpClient } from '../net/httpClient'
-import type { OwnedNamesSource } from './ownedNames'
+import { steamIdFromLoginCookie } from './steamId'
+import { checkOk, type OwnedNamesSource } from './ownedNames'
 
 const STORE = 'https://store.steampowered.com'
 const POST_HEADERS = {
@@ -13,7 +14,7 @@ const POST_HEADERS = {
 
 const userdataSchema = z
   .object({
-    rgOwnedApps: z.array(z.number()).optional(),
+    rgOwnedApps: z.array(z.number()),
     rgOwnedPackages: z.array(z.number()).optional()
   })
   .passthrough()
@@ -25,18 +26,11 @@ export class SteamApi {
   ) {}
 
   async getOwned(): Promise<OwnedData> {
+    // Logged-out userdata is HTTP 200 with empty arrays, which would make every key look unowned.
+    const login = await this.http.getCookie(STORE, 'steamLoginSecure')
+    if (!login || steamIdFromLoginCookie(login) === null) throw new SessionExpiredError('steam')
     const res = await this.http.get(`${STORE}/dynamicstore/userdata/`)
-    if (
-      res.status === 0 ||
-      (res.status >= 300 && res.status < 400) ||
-      res.status === 401 ||
-      res.status === 403
-    ) {
-      throw new SessionExpiredError('steam')
-    }
-    if (res.status < 200 || res.status >= 300) {
-      throw new Error(`steam userdata returned HTTP ${res.status}`)
-    }
+    checkOk(res, 'userdata')
     let raw: unknown
     try {
       raw = JSON.parse(res.body)
@@ -49,9 +43,6 @@ export class SteamApi {
       ...(parsed.data.rgOwnedApps ?? []),
       ...(parsed.data.rgOwnedPackages ?? [])
     ])
-    if (ids.size === 0 && !('rgOwnedApps' in parsed.data)) {
-      throw new ServiceChangedError('steam', 'userdata')
-    }
 
     let names = new Map<number, string>()
     try {

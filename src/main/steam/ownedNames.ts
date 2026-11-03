@@ -24,7 +24,8 @@ const ownedGamesSchema = z
 const pageSchema = z.object({ rgGames: z.array(gameSchema) }).passthrough()
 
 // Errors carry only the endpoint label: the URLs here can contain the token, steamid or key.
-function checkOk(res: Res, endpoint: string): void {
+/** Throws SessionExpiredError for status 0 (opaque redirect), 3xx, 401, 403; a plain Error for other non-2xx. */
+export function checkOk(res: Res, endpoint: string): void {
   if (
     res.status === 0 ||
     (res.status >= 300 && res.status < 400) ||

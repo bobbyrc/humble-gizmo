@@ -88,6 +88,30 @@ describe('SteamApi.getOwned', () => {
     await expect(api.getOwned()).rejects.toBeInstanceOf(ServiceChangedError)
   })
 
+  it('throws a plain Error (not session expired) on HTTP 500', async () => {
+    const api = new SteamApi(new FakeHttp(() => ({ status: 500, body: '' })), names([]))
+    const err = await api.getOwned().catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(Error)
+    expect(err).not.toBeInstanceOf(SessionExpiredError)
+    expect(err).not.toBeInstanceOf(ServiceChangedError)
+  })
+
+  it('without a login cookie it is session expired and makes no request', async () => {
+    for (const v of [undefined, 'garbage']) {
+      const http = new FakeHttp(userdata({ rgOwnedApps: [] }))
+      http.cookies.steamLoginSecure = v
+      await expect(new SteamApi(http, names([])).getOwned()).rejects.toBeInstanceOf(
+        SessionExpiredError
+      )
+      expect(http.calls).toHaveLength(0)
+    }
+  })
+
+  it('rgOwnedPackages without an rgOwnedApps array is ServiceChangedError', async () => {
+    const api = new SteamApi(new FakeHttp(userdata({ rgOwnedPackages: [1] })), names([]))
+    await expect(api.getOwned()).rejects.toBeInstanceOf(ServiceChangedError)
+  })
+
   it('throws ServiceChangedError on non-JSON', async () => {
     const api = new SteamApi(new FakeHttp(() => ({ status: 200, body: '<html>' })), names([]))
     await expect(api.getOwned()).rejects.toBeInstanceOf(ServiceChangedError)
@@ -118,6 +142,13 @@ describe('SteamApi.registerKey', () => {
 
   it('a 302 is session expired, not rate limited', async () => {
     const http = new FakeHttp(() => ({ status: 302, body: '' }))
+    await expect(new SteamApi(http, names([])).registerKey('K')).rejects.toBeInstanceOf(
+      SessionExpiredError
+    )
+  })
+
+  it('status 0 is session expired, not rate limited', async () => {
+    const http = new FakeHttp(() => ({ status: 0, body: '' }))
     await expect(new SteamApi(http, names([])).registerKey('K')).rejects.toBeInstanceOf(
       SessionExpiredError
     )
