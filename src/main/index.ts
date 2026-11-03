@@ -1,6 +1,14 @@
-import { app, BrowserWindow, dialog, ipcMain, powerSaveBlocker, session, shell } from 'electron'
+import { app, dialog, ipcMain, Notification, powerSaveBlocker, session, shell } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { newKeysNotification } from '../shared/copy'
+import type { Settings } from '../shared/types'
+import { applyLinuxAutostart } from './autostart'
+import { createBackgroundCheck } from './backgroundCheck'
+import { startScheduler } from './scheduler'
+import { createTray } from './tray'
 import { runProbe } from './dev/probe'
 import { createAppWindow } from './windows/appWindow'
 import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
@@ -48,6 +56,9 @@ async function openKeyStore(dir: string, codec: SecretCodec): Promise<KeyStore |
     return KeyStore.open(dir, codec)
   }
 }
+
+// Kept until clicked or closed so Electron cannot collect them first.
+const liveNotifications = new Set<Notification>()
 
 async function start(): Promise<void> {
   installAppSessionGuard(session.defaultSession, () => ({
@@ -103,18 +114,102 @@ async function start(): Promise<void> {
     checkForUpdates: async () => 'error' // stub until Task 25
   }
 
-  registerHandlers(
-    ipcMain,
-    createHandlers({ humble, steam, keys, settings, storageEncrypted: codec.encrypted, platform })
-  )
+  let quitting = false
+  app.on('before-quit', () => {
+    quitting = true
+    scheduler.stop()
+  })
+  let tray: { destroy(): void } | null = null
 
   const open = (): void => {
-    appWindow = createAppWindow()
+    const win = createAppWindow()
+    appWindow = win
+    // With keepInBackground (and a tray to bring it back) closing only hides the window.
+    win.on('close', (e) => {
+      if (!quitting && tray && settings.get().keepInBackground) {
+        e.preventDefault()
+        win.hide()
+      }
+    })
+    win.on('closed', () => {
+      if (appWindow === win) appWindow = null
+    })
   }
-  open()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) open()
+  const showWindow = (): void => {
+    if (!appWindow || appWindow.isDestroyed()) {
+      open()
+      return
+    }
+    if (appWindow.isMinimized()) appWindow.restore()
+    appWindow.show()
+    appWindow.focus()
+  }
+
+  const applyTray = (s: Settings): void => {
+    if (s.keepInBackground && !tray) {
+      tray = createTray(showWindow, () => {
+        quitting = true
+        app.quit()
+      })
+    } else if (!s.keepInBackground && tray) {
+      tray.destroy()
+      tray = null
+      // The window may be hidden; make sure the user is not left with no way back in.
+      if (appWindow && !appWindow.isDestroyed() && !appWindow.isVisible()) showWindow()
+    }
+  }
+  const applyLaunchAtLogin = (enabled: boolean): void => {
+    if (process.platform === 'linux') {
+      void applyLinuxAutostart(enabled, homedir(), process.execPath).catch(() => undefined)
+    } else {
+      app.setLoginItemSettings({ openAtLogin: enabled })
+    }
+  }
+
+  // Scheduled checks only announce new keys (see backgroundCheck.ts); they never reveal or redeem.
+  const showNotification = (body: string): void => {
+    if (!Notification.isSupported()) return
+    const n = new Notification({ title: 'Humble Gizmo', body })
+    // Electron may garbage-collect a notification before the user clicks it.
+    liveNotifications.add(n)
+    n.on('click', () => {
+      liveNotifications.delete(n)
+      showWindow()
+    })
+    n.on('close', () => liveNotifications.delete(n))
+    n.show()
+  }
+  const scheduler = startScheduler({
+    getHours: () => settings.get().scheduleHours,
+    check: createBackgroundCheck({
+      isRunActive: () => handlers.isRunActive(),
+      peekWillRedeemIds: () => handlers.peekWillRedeemIds()
+    }),
+    notify: (n) => showNotification(newKeysNotification(n)),
+    notifySignedOut: (s) =>
+      showNotification(`Sign in to ${s === 'humble' ? 'Humble' : 'Steam'} again to keep checking.`),
+    setTimer: setTimeout
   })
+
+  const handlers = createHandlers({
+    humble,
+    steam,
+    keys,
+    settings,
+    storageEncrypted: codec.encrypted,
+    platform,
+    onSettingsChanged: (s) => {
+      scheduler.reschedule()
+      applyTray(s)
+      applyLaunchAtLogin(s.launchAtLogin)
+    }
+  })
+  registerHandlers(ipcMain, handlers)
+  applyTray(settings.get())
+  applyLaunchAtLogin(settings.get().launchAtLogin)
+
+  open()
+  app.on('activate', showWindow)
   app.on('second-instance', () => {
     if (!appWindow || appWindow.isDestroyed()) return
     if (appWindow.isMinimized()) appWindow.restore()
