@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { isAllowedUrl } from './allowlist'
 import { encodeForm, requireAllowed, type HttpClient } from './httpClient'
 
 type Res = { status: number; body: string }
@@ -28,12 +29,26 @@ export class WindowHttpClient implements HttpClient {
     const { BrowserWindow } = await import('electron')
     const win = new BrowserWindow({
       show: false,
-      webPreferences: { partition: this.partition, sandbox: true, contextIsolation: true }
+      webPreferences: {
+        partition: this.partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false
+      }
     })
     win.on('closed', () => {
       this.win = null
     })
-    await win.loadURL(this.origin)
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    win.webContents.on('will-navigate', (event, url) => {
+      if (!isAllowedUrl(url, { updatesAllowed: false })) event.preventDefault()
+    })
+    try {
+      await win.loadURL(this.origin)
+    } catch (e) {
+      if (!win.isDestroyed()) win.destroy()
+      throw e
+    }
     return win
   }
 

@@ -36,7 +36,12 @@ function isLoginPage(body: string): boolean {
 
 /** Throws SessionExpiredError for redirects, 401/403 and the login page. */
 function checkSession(res: Res): void {
-  if ((res.status >= 300 && res.status < 400) || res.status === 401 || res.status === 403) {
+  if (
+    res.status === 0 ||
+    (res.status >= 300 && res.status < 400) ||
+    res.status === 401 ||
+    res.status === 403
+  ) {
     throw new SessionExpiredError('humble')
   }
   if (isLoginPage(res.body)) throw new SessionExpiredError('humble')
@@ -47,6 +52,13 @@ function checkOk(res: Res, endpoint: string): void {
   if (res.status < 200 || res.status >= 300) {
     throw new Error(`humble ${endpoint} returned HTTP ${res.status}`)
   }
+}
+
+/** Errors that retrying cannot fix: expired session, or a host the allowlist blocks. */
+function isFatal(e: unknown): boolean {
+  return (
+    e instanceof SessionExpiredError || (e instanceof Error && e.message.startsWith('blocked host'))
+  )
 }
 
 function parseJson<T>(body: string, schema: z.ZodType<T>, endpoint: string): T {
@@ -106,7 +118,7 @@ export class HumbleApi {
         try {
           return await this.getOrder(gamekey)
         } catch (e) {
-          if (e instanceof SessionExpiredError || attempt >= attempts) throw e
+          if (isFatal(e) || attempt >= attempts) throw e
           await this.sleep(2000 * attempt)
         }
       }
@@ -119,7 +131,7 @@ export class HumbleApi {
           results[i] = await fetchWithRetry(gamekeys[i])
           ok[i] = true
         } catch (e) {
-          if (e instanceof SessionExpiredError) fatal = e
+          if (isFatal(e)) fatal = e
         }
       }
     }

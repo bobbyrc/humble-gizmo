@@ -16,8 +16,9 @@ export class SessionHttpClient implements HttpClient {
   ): Promise<{ status: number; body: string }> {
     requireAllowed(url)
     const ses = await this.session()
-    const res = await ses.fetch(url, { ...init, redirect: 'manual' })
-    return { status: res.status, body: await res.text() }
+    const res = await ses.fetch(url, { ...init, redirect: 'manual', credentials: 'include' })
+    const opaque = res.type === 'opaqueredirect' || res.status === 0
+    return { status: opaque ? 302 : res.status, body: opaque ? '' : await res.text() }
   }
 
   get(url: string): Promise<{ status: number; body: string }> {

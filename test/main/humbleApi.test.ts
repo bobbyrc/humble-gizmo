@@ -158,6 +158,33 @@ describe('getOrders', () => {
   })
 })
 
+describe('opaque redirects and blocked hosts', () => {
+  it('treats status 0 as an expired session', async () => {
+    const http = new FakeHttp(() => ({ status: 0, body: '' }))
+    await expect(new HumbleApi(http).listOrderGamekeys()).rejects.toBeInstanceOf(
+      SessionExpiredError
+    )
+  })
+
+  it('getOrders aborts on status 0 instead of listing failures', async () => {
+    const http = new FakeHttp(() => ({ status: 0, body: '' }))
+    await expect(
+      new HumbleApi(http, { sleep: noSleep }).getOrders(['a', 'b'], { concurrency: 1 })
+    ).rejects.toBeInstanceOf(SessionExpiredError)
+    expect(http.calls).toHaveLength(1)
+  })
+
+  it('getOrders does not retry a blocked host error', async () => {
+    const http = new FakeHttp(() => {
+      throw new Error('blocked host: evil.example.com')
+    })
+    await expect(
+      new HumbleApi(http, { sleep: noSleep }).getOrders(['a'], { concurrency: 1 })
+    ).rejects.toThrow('blocked host')
+    expect(http.calls).toHaveLength(1)
+  })
+})
+
 describe('revealKey', () => {
   it('sends the exact form and headers and returns the key', async () => {
     const http = new FakeHttp(() => json({ success: true, key: 'AAAAA-BBBBB-CCCCC' }))
