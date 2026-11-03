@@ -1,5 +1,7 @@
 import type { AppUpdater } from 'electron-updater'
+import type { Session } from 'electron'
 import type { Settings } from '../shared/types'
+import { installAppSessionGuard } from './net/allowlist'
 
 export type UpdateCheck = 'none' | 'available' | 'error'
 
@@ -28,6 +30,8 @@ export interface UpdaterDeps {
   showReleasesPrompt?(): Promise<void>
   /** Runs just before quitAndInstall so the app's own quit guards let it through. */
   beforeInstall?(): void
+  /** Undoes beforeInstall when the download or install throws. */
+  afterInstallFailed?(): void
   setInterval?: typeof setInterval
   clearInterval?: typeof clearInterval
 }
@@ -59,25 +63,29 @@ export function initUpdater(deps: UpdaterDeps): Updater {
 
   const run = async (): Promise<UpdateCheck> => {
     deps.setUpdatesAllowed(true)
+    let installing = false
     try {
       const res = await updater.checkForUpdates()
       if (!res || !res.isUpdateAvailable) return 'none'
       const version = res.updateInfo.version
+      // No network is needed while a dialog waits, so close the gate first.
+      restoreFlag()
       if (deps.externalInstall) {
-        // Allowed flag is released first: opening the browser needs no network from the app.
-        restoreFlag()
         await deps.showReleasesPrompt?.()
         return 'available'
       }
       // The user decides before anything is downloaded.
       if (await deps.askInstall(version)) {
+        deps.setUpdatesAllowed(true)
         await updater.downloadUpdate()
         restoreFlag()
+        installing = true
         deps.beforeInstall?.()
         updater.quitAndInstall()
       }
       return 'available'
     } catch {
+      if (installing) deps.afterInstallFailed?.()
       return 'error'
     } finally {
       restoreFlag()
@@ -115,4 +123,17 @@ export function initUpdater(deps: UpdaterDeps): Updater {
   if (settings.get().autoUpdate) start()
 
   return { checkNow, onSettingsChanged, stop }
+}
+
+/**
+ * electron-updater sends its requests through its own session, which the app-wide guard does not
+ * cover. Guard that session too so update traffic is blocked unless updates are allowed.
+ */
+export function guardUpdaterSession(
+  fromPartition: (partition: string, opts: { cache: boolean }) => Session,
+  getUpdatesAllowed: () => boolean
+): void {
+  installAppSessionGuard(fromPartition('electron-updater', { cache: false }), () => ({
+    updatesAllowed: getUpdatesAllowed()
+  }))
 }

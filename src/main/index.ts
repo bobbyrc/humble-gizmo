@@ -15,7 +15,7 @@ import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
 import { installAppSessionGuard } from './net/allowlist'
 import { getUpdatesAllowed, setUpdatesAllowed } from './net/updatesFlag'
 import { autoUpdater } from 'electron-updater'
-import { initUpdater } from './updater'
+import { guardUpdaterSession, initUpdater } from './updater'
 import { createHumbleHttpClient } from './net/transportConfig'
 import { SessionHttpClient } from './net/sessionHttpClient'
 import { HumbleApi } from './humble/humbleApi'
@@ -183,6 +183,7 @@ async function start(): Promise<void> {
     n.show()
   }
   // Update checks reach GitHub, so initUpdater only runs them when autoUpdate is on or the user clicks check.
+  guardUpdaterSession((name, opts) => session.fromPartition(name, opts), getUpdatesAllowed)
   const updater = initUpdater({
     settings,
     updater: autoUpdater,
@@ -214,6 +215,9 @@ async function start(): Promise<void> {
     // Without this the keepInBackground close handler would hide the window instead of letting the app quit.
     beforeInstall: () => {
       quitting = true
+    },
+    afterInstallFailed: () => {
+      quitting = false
     }
   })
   const scheduler = startScheduler({

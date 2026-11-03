@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '../../src/shared/types'
 import type { Settings } from '../../src/shared/types'
-import { initUpdater, type UpdaterDeps } from '../../src/main/updater'
+import { guardUpdaterSession, initUpdater, type UpdaterDeps } from '../../src/main/updater'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function setup(over: Partial<UpdaterDeps> = {}, autoUpdate = false, available = true) {
@@ -160,5 +160,60 @@ describe('initUpdater', () => {
     const { u, updater } = setup({}, false, false)
     await Promise.all([u.checkNow(), u.checkNow()])
     expect(updater.checkForUpdates).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes the gate while the install prompt waits, reopens it for the download', async () => {
+    const { u, updater, flag, askInstall } = setup()
+    const seen: Record<string, boolean[]> = {}
+    askInstall.mockImplementation(async () => {
+      seen.ask = [...flag]
+      return true
+    })
+    updater.downloadUpdate.mockImplementation(async () => {
+      seen.download = [...flag]
+      return []
+    })
+    await u.checkNow()
+    expect(seen.ask).toEqual([true, false])
+    expect(seen.download).toEqual([true, false, true])
+    expect(flag[flag.length - 1]).toBe(false)
+  })
+
+  it('undoes beforeInstall when download or install throws', async () => {
+    const afterInstallFailed = vi.fn()
+    const a = setup({ afterInstallFailed })
+    a.updater.quitAndInstall.mockImplementation(() => {
+      throw new Error('boom')
+    })
+    expect(await a.u.checkNow()).toBe('error')
+    expect(a.beforeInstall).toHaveBeenCalledTimes(1)
+    expect(afterInstallFailed).toHaveBeenCalledTimes(1)
+
+    const failDownload = vi.fn()
+    const b = setup({ afterInstallFailed: failDownload })
+    b.updater.downloadUpdate.mockRejectedValue(new Error('net'))
+    expect(await b.u.checkNow()).toBe('error')
+    expect(b.beforeInstall).not.toHaveBeenCalled()
+    expect(failDownload).not.toHaveBeenCalled()
+  })
+})
+
+describe('guardUpdaterSession', () => {
+  it('guards the electron-updater partition and follows the updates flag', () => {
+    let handler: ((d: { url: string }, cb: (r: { cancel: boolean }) => void) => void) | undefined
+    const ses = { webRequest: { onBeforeRequest: (h: typeof handler) => void (handler = h) } }
+    const fromPartition = vi.fn(() => ses)
+    let allowed = false
+    guardUpdaterSession(fromPartition as never, () => allowed)
+    expect(fromPartition).toHaveBeenCalledWith('electron-updater', { cache: false })
+    const cancelled = (url: string): boolean => {
+      let c = false
+      handler!({ url }, (r) => void (c = r.cancel))
+      return c
+    }
+    expect(cancelled('https://api.github.com/repos/x')).toBe(true)
+    allowed = true
+    expect(cancelled('https://api.github.com/repos/x')).toBe(false)
+    expect(cancelled('https://example.com/')).toBe(true)
   })
 })
