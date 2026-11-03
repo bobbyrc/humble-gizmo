@@ -30,3 +30,8 @@ export function mockGizmo(overrides: Partial<GizmoApi> = {}): MockGizmo {
   ;(window as unknown as { gizmo: GizmoApi }).gizmo = api
   return api
 }
+
+/** An error as the contextBridge delivers it: a plain Error whose message carries name and service. */
+export function bridgeError(name: string, service: 'humble' | 'steam' | null = null): Error {
+  return new Error('GIZMO_ERR:' + JSON.stringify({ name, service }))
+}

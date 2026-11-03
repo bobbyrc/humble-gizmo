@@ -3,11 +3,11 @@ import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
 import { GROUP_LABELS } from '../../shared/copy'
 import type { ReviewGroup, ReviewItem } from '../../shared/types'
-import { Button, Section, Spinner } from '../components/ui'
+import { Banner, Button, Section, Spinner } from '../components/ui'
 import { VirtualRows } from '../components/review/VirtualRows'
 import { ReviewRow } from '../components/review/ReviewRow'
-import { ErrorBanner } from '../components/review/ErrorBanner'
-import { beginRunSession, setLastReview } from '../runState'
+import ErrorBanner from '../components/ErrorBanner'
+import { beginRunSession, isRunActive, setLastReview } from '../runState'
 import '../components/review/review.css'
 
 const GROUP_ORDER: ReviewGroup[] = [
@@ -33,22 +33,30 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   const [ticks, setTicks] = useState<Record<string, boolean>>({})
   const [runError, setRunError] = useState<unknown>(null)
   const [starting, setStarting] = useState(false)
+  const [failedOrders, setFailedOrders] = useState(0)
 
   const fetchReview = useCallback(() => {
-    gizmo.buildReview().then(
-      (result) => {
+    gizmo
+      .loadLibrary()
+      .then(async (summary) => {
+        const result = await gizmo.buildReview()
+        setFailedOrders(summary.failedOrders)
         setLastReview(result)
         setItems(result)
         setTicks(Object.fromEntries(result.map((i) => [i.key.id, i.ticked])))
         setLoad({ status: 'ready' })
-      },
-      (error: unknown) => setLoad({ status: 'error', error })
-    )
+      })
+      .catch((error: unknown) => setLoad({ status: 'error', error }))
   }, [])
 
   useEffect(() => {
+    // A run in progress owns the screen; reattach instead of building a review.
+    if (isRunActive()) {
+      go('run')
+      return
+    }
     fetchReview()
-  }, [fetchReview])
+  }, [fetchReview, go])
 
   function retry(): void {
     setLoad({ status: 'loading' })
@@ -78,6 +86,10 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
 
   function redeem(): void {
     if (starting) return
+    if (isRunActive()) {
+      go('run')
+      return
+    }
     setRunError(null)
     setStarting(true)
     beginRunSession()
@@ -109,12 +121,20 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
     <div className="screen-pad review-screen">
       <div className="screen-header">
         <h1>{items.length === 0 ? 'Redeem' : `Ready to redeem ${n} games`}</h1>
-        {items.length > 0 && (
-          <Button disabled={n === 0 || starting} onClick={redeem}>
-            Redeem {n}
+        <div className="screen-header-actions">
+          <Button variant="secondary" onClick={retry}>
+            Refresh
           </Button>
-        )}
+          {items.length > 0 && (
+            <Button disabled={n === 0 || starting} onClick={redeem}>
+              Redeem {n}
+            </Button>
+          )}
+        </div>
       </div>
+      {failedOrders > 0 && (
+        <Banner tone="warn">{`Couldn't load ${failedOrders} orders — try again later`}</Banner>
+      )}
       {runError !== null && <ErrorBanner error={runError} onRetry={redeem} />}
       {items.length === 0 && (
         <p className="review-empty">Nothing new to redeem. You&apos;re all caught up.</p>

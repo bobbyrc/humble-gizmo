@@ -7,7 +7,7 @@ import {
   NO_KEYRING_NOTICE,
   UPDATE_TOGGLE
 } from '../../src/shared/copy'
-import { mockGizmo } from './mockGizmo'
+import { bridgeError, mockGizmo } from './mockGizmo'
 import { NavProvider, useNav } from '../../src/renderer/nav'
 import Settings from '../../src/renderer/screens/Settings'
 
@@ -177,7 +177,7 @@ describe('Settings', () => {
   })
 
   it('shows the session-expired banner for a SessionExpiredError', async () => {
-    const err = Object.assign(new Error('x'), { name: 'SessionExpiredError', service: 'steam' })
+    const err = bridgeError('SessionExpiredError', 'steam')
     const g = mockGizmo({ signOut: vi.fn(async () => Promise.reject(err)) })
     await renderSettings()
     fireEvent.click(screen.getByRole('button', { name: 'Sign out of Steam' }))
@@ -187,7 +187,7 @@ describe('Settings', () => {
   })
 
   it('shows the service-changed banner with a releases link', async () => {
-    const err = Object.assign(new Error('x'), { name: 'ServiceChangedError', service: 'humble' })
+    const err = bridgeError('ServiceChangedError', 'humble')
     const g = mockGizmo({ signOut: vi.fn(async () => Promise.reject(err)) })
     await renderSettings()
     fireEvent.click(screen.getByRole('button', { name: 'Sign out of Humble' }))

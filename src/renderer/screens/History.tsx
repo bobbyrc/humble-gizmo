@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { gizmo, errorName } from '../gizmo'
+import { gizmo } from '../gizmo'
+import ErrorBanner from '../components/ErrorBanner'
 import { Banner, Button, Checkbox, ConfirmDialog, Pill, Spinner } from '../components/ui'
 import { CODE_LABELS } from '../../core/steamCodes'
-import { serviceChanged } from '../../shared/copy'
 import type { KeyRecord } from '../../shared/types'
 import '../components/history/history.css'
-
-const RELEASES_URL = 'https://github.com/bobbyrc/humble-gizmo/releases'
 
 function ResultPill({ record }: { record: KeyRecord }): React.JSX.Element {
   switch (record.outcome) {
@@ -27,43 +25,6 @@ function ResultPill({ record }: { record: KeyRecord }): React.JSX.Element {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function ErrorBanner({
-  error,
-  onRetry
-}: {
-  error: unknown
-  onRetry: () => void
-}): React.JSX.Element {
-  const name = errorName(error)
-  const service = (error as { service?: string })?.service
-  if (name === 'ServiceChangedError') {
-    return (
-      <Banner
-        tone="danger"
-        action={{
-          label: 'Get the latest version',
-          onClick: () => void gizmo.openExternal(RELEASES_URL)
-        }}
-      >
-        {serviceChanged(service === 'steam' ? 'Steam' : 'Humble')}
-      </Banner>
-    )
-  }
-  if (name === 'SessionExpiredError') {
-    const svc = service === 'steam' ? 'steam' : 'humble'
-    return (
-      <Banner tone="danger" action={{ label: 'Sign in', onClick: () => void gizmo.signIn(svc) }}>
-        {svc === 'steam' ? 'Sign in to Steam again' : 'Sign in to Humble again'}
-      </Banner>
-    )
-  }
-  return (
-    <Banner tone="danger" action={{ label: 'Retry', onClick: onRetry }}>
-      Something went wrong. Try again.
-    </Banner>
-  )
 }
 
 export default function History(): React.JSX.Element {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ChoiceGame, ChoiceMonth } from '../../src/shared/types'
-import { mockGizmo } from './mockGizmo'
+import { bridgeError, mockGizmo } from './mockGizmo'
 import { NavProvider } from '../../src/renderer/nav'
 import Choice from '../../src/renderer/screens/Choice'
 
@@ -167,5 +167,32 @@ describe('Choice', () => {
     renderChoice()
     expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+  })
+
+  it('loads the library before listing months', async () => {
+    const order: string[] = []
+    mockGizmo({
+      loadLibrary: vi.fn(async () => {
+        order.push('load')
+        return { keys: 0, steamKeys: 0, failedOrders: 0 }
+      }),
+      listChoiceMonths: vi.fn(async () => {
+        order.push('list')
+        return [month()]
+      })
+    })
+    renderChoice()
+    await screen.findByText('March 2025')
+    expect(order).toEqual(['load', 'list'])
+  })
+
+  it('shows the sign-in banner for a bridge SessionExpiredError', async () => {
+    const api = mockGizmo({
+      listChoiceMonths: vi.fn().mockRejectedValue(bridgeError('SessionExpiredError', 'humble'))
+    })
+    renderChoice()
+    expect(await screen.findByText('Sign in to Humble again')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(api.signIn).toHaveBeenCalledWith('humble')
   })
 })

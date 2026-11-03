@@ -24,6 +24,10 @@
   margin: 0;
   margin-right: auto;
 }
+.screen-header-actions {
+  display: flex;
+  gap: var(--s2);
+}
 .vrows {
   position: relative;
   max-height: 60vh;
@@ -73,5 +77,8 @@
   border-bottom: 1px solid var(--border);
 }
 .review-empty {
+  color: var(--text-muted);
+}
+.run-attempt {
   color: var(--text-muted);
 }

@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { ReviewItem, ReviewGroup } from '../../src/shared/types'
+import type { ReviewItem, ReviewGroup, RunEvent } from '../../src/shared/types'
 import { UNREVEALED_LABEL } from '../../src/shared/copy'
-import { mockGizmo } from './mockGizmo'
+import { bridgeError, mockGizmo } from './mockGizmo'
 import { NavProvider, useNav } from '../../src/renderer/nav'
 import Review from '../../src/renderer/screens/Review'
-import { nameFor, resetRunSession } from '../../src/renderer/runState'
+import {
+  beginRunSession,
+  getRunEvents,
+  isRunActive,
+  nameFor,
+  resetRunSession
+} from '../../src/renderer/runState'
 
 afterEach(() => {
   cleanup()
@@ -142,7 +148,7 @@ describe('Review', () => {
   })
 
   it('shows the sign-in banner on SessionExpiredError', async () => {
-    const err = Object.assign(new Error('x'), { name: 'SessionExpiredError', service: 'steam' })
+    const err = bridgeError('SessionExpiredError', 'steam')
     const api = mockGizmo({ buildReview: vi.fn().mockRejectedValue(err) })
     renderReview()
     expect(await screen.findByText('Sign in to Steam again')).toBeTruthy()
@@ -151,7 +157,7 @@ describe('Review', () => {
   })
 
   it('shows the update banner on ServiceChangedError', async () => {
-    const err = Object.assign(new Error('x'), { name: 'ServiceChangedError', service: 'humble' })
+    const err = bridgeError('ServiceChangedError', 'humble')
     const api = mockGizmo({ buildReview: vi.fn().mockRejectedValue(err) })
     renderReview()
     await screen.findByText('Humble changed something — check for an update.')
@@ -247,5 +253,99 @@ describe('Review', () => {
     const rows = screen.getAllByRole('listitem')
     expect(rows[1].getAttribute('aria-setsize')).toBe('2')
     expect(rows[1].getAttribute('aria-posinset')).toBe('2')
+  })
+})
+
+describe('Review refresh and reattach', () => {
+  it('loads the library before building the review', async () => {
+    const order: string[] = []
+    mockGizmo({
+      loadLibrary: vi.fn(async () => {
+        order.push('load')
+        return { keys: 1, steamKeys: 1, failedOrders: 0 }
+      }),
+      buildReview: vi.fn(async () => {
+        order.push('build')
+        return [item(1)]
+      })
+    })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(order).toEqual(['load', 'build'])
+  })
+
+  it('warns when some orders failed to load', async () => {
+    mockGizmo({ loadLibrary: vi.fn(async () => ({ keys: 1, steamKeys: 1, failedOrders: 3 })) })
+    renderReview()
+    expect(await screen.findByText("Couldn't load 3 orders — try again later")).toBeTruthy()
+  })
+
+  it('shows no order warning when none failed', async () => {
+    mockGizmo()
+    renderReview()
+    await screen.findByText("Nothing new to redeem. You're all caught up.")
+    expect(screen.queryByText(/Couldn't load/)).toBeNull()
+  })
+
+  it('Refresh re-runs loadLibrary and buildReview', async () => {
+    const api = mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(api.loadLibrary).toHaveBeenCalledTimes(2))
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(api.buildReview).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the error banner when loadLibrary rejects with a bridge error', async () => {
+    const api = mockGizmo({
+      loadLibrary: vi.fn().mockRejectedValue(bridgeError('SessionExpiredError', 'humble'))
+    })
+    renderReview()
+    expect(await screen.findByText('Sign in to Humble again')).toBeTruthy()
+    expect(api.buildReview).not.toHaveBeenCalled()
+  })
+
+  it('redirects to Run while a run is active and keeps the buffered events', async () => {
+    let cb: (e: RunEvent) => void = () => undefined
+    const api = mockGizmo({
+      onRunEvent: vi.fn((c: (e: RunEvent) => void) => {
+        cb = c
+        return () => undefined
+      })
+    })
+    beginRunSession()
+    cb({ type: 'key-start', id: 'a' })
+    renderReview()
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('run'))
+    expect(getRunEvents()).toEqual([{ type: 'key-start', id: 'a' }])
+    expect(isRunActive()).toBe(true)
+    expect(api.loadLibrary).not.toHaveBeenCalled()
+    expect(api.buildReview).not.toHaveBeenCalled()
+  })
+
+  it('redeem goes to Run instead of starting a second session when a run became active', async () => {
+    const api = mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    const btn = await screen.findByRole('button', { name: 'Redeem 1' })
+    beginRunSession()
+    fireEvent.click(btn)
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('run'))
+    expect(api.startRun).not.toHaveBeenCalled()
+  })
+
+  it('does not leak an unhandled rejection from banner actions', async () => {
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    const api = mockGizmo({
+      buildReview: vi.fn().mockRejectedValue(bridgeError('SessionExpiredError', 'steam')),
+      signIn: vi.fn().mockRejectedValue(new Error('nope'))
+    })
+    renderReview()
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }))
+    await new Promise((r) => setTimeout(r, 20))
+    process.off('unhandledRejection', unhandled)
+    expect(api.signIn).toHaveBeenCalledWith('steam')
+    expect(unhandled).not.toHaveBeenCalled()
   })
 })
