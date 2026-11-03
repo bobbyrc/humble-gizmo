@@ -42,7 +42,7 @@ export type RunEvent =
   | { type: 'revealing'; id: string }
   | { type: 'key-done'; id: string; outcome: Exclude<Outcome, 'pending'>; code: number | null }
   | { type: 'rate-limited'; id: string; resumeAt: string; attempt: number }
-  | { type: 'stopped'; reason: 'user' | 'steam-signed-out' | 'humble-signed-out' }
+  | { type: 'stopped'; reason: 'user' | 'steam-signed-out' | 'humble-signed-out' | 'error' }
   | { type: 'finished'; summary: RunSummary };
 export type RunSummary = { redeemed: number; owned: number; errors: number; remaining: number };
 export type Settings = {
