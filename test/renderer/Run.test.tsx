@@ -4,7 +4,7 @@ import type { RunEvent, ReviewItem } from '../../src/shared/types'
 import { mockGizmo } from './mockGizmo'
 import { NavProvider, useNav } from '../../src/renderer/nav'
 import Run from '../../src/renderer/screens/Run'
-import { setLastReview } from '../../src/renderer/runState'
+import { beginRunSession, resetRunSession, setLastReview } from '../../src/renderer/runState'
 
 afterEach(cleanup)
 
@@ -12,10 +12,11 @@ function Where(): React.JSX.Element {
   return <div data-testid="where">{useNav().screen}</div>
 }
 
-function setup(overrides = {}): {
+function setup(mountNow = true): {
   emit: (e: RunEvent) => void
   api: ReturnType<typeof mockGizmo>
-  unsub: () => void
+  unsub: ReturnType<typeof vi.fn>
+  mount: () => void
 } {
   let cb: (e: RunEvent) => void = () => undefined
   const unsub = vi.fn()
@@ -23,16 +24,20 @@ function setup(overrides = {}): {
     onRunEvent: vi.fn((c: (e: RunEvent) => void) => {
       cb = c
       return unsub
-    }),
-    ...overrides
+    })
   })
-  render(
-    <NavProvider initial="run">
-      <Run />
-      <Where />
-    </NavProvider>
-  )
-  return { emit: (e) => act(() => cb(e)), api, unsub }
+  resetRunSession()
+  beginRunSession()
+  const mount = (): void => {
+    render(
+      <NavProvider initial="run">
+        <Run />
+        <Where />
+      </NavProvider>
+    )
+  }
+  if (mountNow) mount()
+  return { emit: (e) => act(() => cb(e)), api, unsub, mount }
 }
 
 describe('Run', () => {
@@ -100,9 +105,37 @@ describe('Run', () => {
     expect(api.stopRun).toHaveBeenCalled()
   })
 
-  it('unsubscribes on unmount', () => {
-    const { unsub } = setup()
+  it('shows events emitted before Run mounted, including a terminal one', () => {
+    const { emit, mount } = setup(false)
+    emit({ type: 'key-done', id: 'a', outcome: 'redeemed', code: 0 })
+    emit({ type: 'finished', summary: { redeemed: 1, owned: 0, errors: 0, remaining: 0 } })
+    mount()
+    expect(screen.getByText('Done — 1 added, 0 already owned, 0 errors')).toBeTruthy()
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+  })
+
+  it('keeps the list and counts when remounted mid-run', () => {
+    const { emit } = setup()
+    emit({ type: 'key-done', id: 'a', outcome: 'redeemed', code: 0 })
     cleanup()
-    expect(unsub).toHaveBeenCalled()
+    render(
+      <NavProvider initial="run">
+        <Run />
+      </NavProvider>
+    )
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByText('1 added')).toBeTruthy()
+    emit({ type: 'key-done', id: 'b', outcome: 'owned', code: 9 })
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('subscribes to gizmo once per run and drops it after a terminal event', () => {
+    const { api, emit, unsub } = setup(false)
+    beginRunSession()
+    expect(api.onRunEvent).toHaveBeenCalledTimes(1)
+    emit({ type: 'stopped', reason: 'user' })
+    expect(unsub).toHaveBeenCalledTimes(1)
+    beginRunSession()
+    expect(api.onRunEvent).toHaveBeenCalledTimes(2)
   })
 })

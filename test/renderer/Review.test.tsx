@@ -5,9 +5,12 @@ import { UNREVEALED_LABEL } from '../../src/shared/copy'
 import { mockGizmo } from './mockGizmo'
 import { NavProvider, useNav } from '../../src/renderer/nav'
 import Review from '../../src/renderer/screens/Review'
-import { nameFor } from '../../src/renderer/runState'
+import { nameFor, resetRunSession } from '../../src/renderer/runState'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  resetRunSession()
+})
 
 function item(
   n: number,
@@ -103,9 +106,9 @@ describe('Review', () => {
     await screen.findByText('Game 1')
     expect(screen.queryByText('Game 2')).toBeNull()
     expect(screen.getByText('check these')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Might already own/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Might already own/ }))
     expect(screen.getByText('matches Game Two')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Failed before/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Failed before/ }))
     expect(screen.getByText("won't work")).toBeTruthy()
     fireEvent.click(screen.getAllByText('Untick all')[0])
     expect(screen.getByRole('button', { name: 'Redeem 0' }).hasAttribute('disabled')).toBe(true)
@@ -156,5 +159,71 @@ describe('Review', () => {
     expect(api.openExternal).toHaveBeenCalledWith(
       'https://github.com/bobbyrc/humble-gizmo/releases'
     )
+  })
+
+  it('does not send or count ticked items that are not tickable', async () => {
+    const api = mockGizmo({
+      buildReview: vi.fn(async () => [item(1), item(2, { ticked: true, tickable: false })])
+    })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Redeem 1' }))
+    await waitFor(() => expect(api.startRun).toHaveBeenCalledWith(['g:1:m1']))
+  })
+
+  it('calls startRun once on double click and subscribes first', async () => {
+    const order: string[] = []
+    const api = mockGizmo({
+      buildReview: vi.fn(async () => [item(1)]),
+      onRunEvent: vi.fn(() => {
+        order.push('subscribe')
+        return () => undefined
+      }),
+      startRun: vi.fn(async () => {
+        order.push('start')
+      })
+    })
+    renderReview()
+    const btn = await screen.findByRole('button', { name: 'Redeem 1' })
+    fireEvent.click(btn)
+    fireEvent.click(btn)
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('run'))
+    expect(api.startRun).toHaveBeenCalledTimes(1)
+    expect(order.slice(0, 2)).toEqual(['subscribe', 'start'])
+  })
+
+  it('shows the generic error banner when startRun rejects', async () => {
+    mockGizmo({
+      buildReview: vi.fn(async () => [item(1)]),
+      startRun: vi.fn().mockRejectedValue(new Error('nope'))
+    })
+    renderReview()
+    fireEvent.click(await screen.findByRole('button', { name: 'Redeem 1' }))
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+  })
+
+  it('untick all only affects its own group', async () => {
+    mockGizmo({
+      buildReview: vi.fn(async () => [
+        item(1),
+        item(2, {}, 'owned'),
+        item(3, { ticked: true }, 'owned')
+      ])
+    })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 2' })
+    fireEvent.click(screen.getByRole('button', { name: /^You already own/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Untick all You already own' }))
+    expect(screen.getByRole('button', { name: 'Redeem 1' })).toBeTruthy()
+    expect((screen.getByLabelText('Game 1') as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('marks rows with set size and position', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1), item(2)]) })
+    renderReview()
+    await screen.findByText('Game 2')
+    const rows = screen.getAllByRole('listitem')
+    expect(rows[1].getAttribute('aria-setsize')).toBe('2')
+    expect(rows[1].getAttribute('aria-posinset')).toBe('2')
   })
 })

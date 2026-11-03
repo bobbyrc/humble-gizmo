@@ -5,7 +5,7 @@ import { rateLimitMessage } from '../../shared/copy'
 import { CODE_LABELS } from '../../core/steamCodes'
 import type { Outcome, RunEvent, RunSummary } from '../../shared/types'
 import { Banner, Button, Pill } from '../components/ui'
-import { nameFor } from '../runState'
+import { getRunEvents, nameFor, subscribeRun } from '../runState'
 import '../components/review/review.css'
 
 type Finished = { id: string; outcome: Exclude<Outcome, 'pending'>; code: number | null }
@@ -22,40 +22,44 @@ function OutcomePill({ f }: { f: Finished }): React.JSX.Element {
   return <Pill tone="danger">{label}</Pill>
 }
 
+type RunState = { rows: Finished[]; status: Status }
+
+function reduce(state: RunState, e: RunEvent): RunState {
+  const resume = (s: Status): Status => (s.kind === 'rate-limited' ? { kind: 'running' } : s)
+  switch (e.type) {
+    case 'key-done':
+      return {
+        rows: [{ id: e.id, outcome: e.outcome, code: e.code }, ...state.rows],
+        status: resume(state.status)
+      }
+    case 'key-start':
+    case 'revealing':
+      return { ...state, status: resume(state.status) }
+    case 'rate-limited':
+      return {
+        ...state,
+        status: {
+          kind: 'rate-limited',
+          time: new Date(e.resumeAt).toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit'
+          })
+        }
+      }
+    case 'stopped':
+      return { ...state, status: { kind: 'stopped', reason: e.reason } }
+    case 'finished':
+      return { ...state, status: { kind: 'finished', summary: e.summary } }
+  }
+}
+
 export default function Run(): React.JSX.Element {
   const { go } = useNav()
-  const [rows, setRows] = useState<Finished[]>([])
-  const [status, setStatus] = useState<Status>({ kind: 'running' })
+  const [{ rows, status }, setState] = useState<RunState>(() =>
+    getRunEvents().reduce(reduce, { rows: [], status: { kind: 'running' } })
+  )
 
-  useEffect(() => {
-    return gizmo.onRunEvent((e) => {
-      switch (e.type) {
-        case 'key-done':
-          setRows((prev) => [{ id: e.id, outcome: e.outcome, code: e.code }, ...prev])
-          setStatus((s) => (s.kind === 'rate-limited' ? { kind: 'running' } : s))
-          break
-        case 'key-start':
-        case 'revealing':
-          setStatus((s) => (s.kind === 'rate-limited' ? { kind: 'running' } : s))
-          break
-        case 'rate-limited':
-          setStatus({
-            kind: 'rate-limited',
-            time: new Date(e.resumeAt).toLocaleTimeString([], {
-              hour: 'numeric',
-              minute: '2-digit'
-            })
-          })
-          break
-        case 'stopped':
-          setStatus({ kind: 'stopped', reason: e.reason })
-          break
-        case 'finished':
-          setStatus({ kind: 'finished', summary: e.summary })
-          break
-      }
-    })
-  }, [])
+  useEffect(() => subscribeRun((e) => setState((s) => reduce(s, e))), [])
 
   const counts =
     status.kind === 'finished'

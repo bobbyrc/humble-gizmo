@@ -46,6 +46,8 @@ export function VirtualRows<T>({
           <div
             key={itemKey(item)}
             role="listitem"
+            aria-setsize={items.length}
+            aria-posinset={first + i + 1}
             className="review-row"
             style={{ top: (first + i) * ROW_HEIGHT }}
           >

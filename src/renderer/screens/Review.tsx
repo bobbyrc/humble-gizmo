@@ -7,7 +7,7 @@ import { Button, Section, Spinner } from '../components/ui'
 import { VirtualRows } from '../components/review/VirtualRows'
 import { ReviewRow } from '../components/review/ReviewRow'
 import { ErrorBanner } from '../components/review/ErrorBanner'
-import { setLastReview } from '../runState'
+import { beginRunSession, setLastReview } from '../runState'
 import '../components/review/review.css'
 
 const GROUP_ORDER: ReviewGroup[] = [
@@ -32,6 +32,7 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   const [items, setItems] = useState<ReviewItem[]>([])
   const [ticks, setTicks] = useState<Record<string, boolean>>({})
   const [runError, setRunError] = useState<unknown>(null)
+  const [starting, setStarting] = useState(false)
 
   const fetchReview = useCallback(() => {
     gizmo.buildReview().then(
@@ -64,7 +65,7 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
     return map
   }, [items])
 
-  const tickedIds = items.filter((i) => ticks[i.key.id]).map((i) => i.key.id)
+  const tickedIds = items.filter((i) => i.tickable && ticks[i.key.id]).map((i) => i.key.id)
   const n = tickedIds.length
 
   function untickAll(group: ReviewGroup): void {
@@ -76,10 +77,16 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   }
 
   function redeem(): void {
+    if (starting) return
     setRunError(null)
+    setStarting(true)
+    beginRunSession()
     gizmo.startRun(tickedIds).then(
       () => go('run'),
-      (error: unknown) => setRunError(error)
+      (error: unknown) => {
+        setStarting(false)
+        setRunError(error)
+      }
     )
   }
 
@@ -103,7 +110,7 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
       <div className="screen-header">
         <h1>{items.length === 0 ? 'Redeem' : `Ready to redeem ${n} games`}</h1>
         {items.length > 0 && (
-          <Button disabled={n === 0} onClick={redeem}>
+          <Button disabled={n === 0 || starting} onClick={redeem}>
             Redeem {n}
           </Button>
         )}
@@ -123,9 +130,14 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
             hint={HINTS[group]}
             defaultOpen={group === 'will_redeem'}
             actions={
-              <Button variant="link" onClick={() => untickAll(group)}>
+              <button
+                type="button"
+                className="btn btn-link"
+                aria-label={`Untick all ${GROUP_LABELS[group]}`}
+                onClick={() => untickAll(group)}
+              >
                 Untick all
-              </Button>
+              </button>
             }
           >
             <VirtualRows

@@ -11,7 +11,7 @@ export function ErrorBanner({
   onRetry: () => void
 }): React.JSX.Element {
   const name = errorName(error)
-  const service = (error as { service?: 'humble' | 'steam' }).service ?? 'humble'
+  const service = (error as { service?: 'humble' | 'steam' } | null)?.service ?? 'humble'
   const label = service === 'steam' ? 'Steam' : 'Humble'
   if (name === 'ServiceChangedError') {
     return (
