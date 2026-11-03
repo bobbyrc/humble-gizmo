@@ -67,7 +67,9 @@ function markDuplicates(items: ReviewItem[]): void {
   for (const it of items) {
     if (it.group !== 'will_redeem' || !it.ticked) continue
     if (it.key.steamAppId !== null) add(`id:${it.key.steamAppId}`, it)
-    add(`t:${normalizeTitle(it.key.name).join(' ')}`, it)
+    // Titles that normalize to nothing (e.g. CJK) must not all share one bucket.
+    const tokens = normalizeTitle(it.key.name)
+    if (tokens.length > 0) add(`t:${tokens.join(' ')}`, it)
   }
   // An item can sit in two buckets (same id and same title). Only items still
   // ticked count as candidates, so an item unticked by one bucket is never kept

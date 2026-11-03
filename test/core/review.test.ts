@@ -157,6 +157,19 @@ describe('buildReviewList', () => {
     expect(out.every((i) => i.ticked)).toBe(true)
   })
 
+  it('rule 5: titles that normalize to nothing are not title duplicates', () => {
+    const out = buildReviewList([makeKey('ゲーム'), makeKey('ゴルフ')], none, noRecords)
+    expect(out.every((i) => i.ticked && !i.reasons.includes('duplicate'))).toBe(true)
+  })
+
+  it('rule 5: empty-token titles with the same app id are still deduped by id', () => {
+    const a = makeKey('ゲーム', { steamAppId: 3 })
+    const b = makeKey('ゴルフ', { steamAppId: 3 })
+    const out = buildReviewList([a, b], none, noRecords)
+    expect(out.filter((i) => i.ticked)).toHaveLength(1)
+    expect(out.filter((i) => i.reasons.includes('duplicate'))).toHaveLength(1)
+  })
+
   it('rule 6: unrevealed reason', () => {
     const a = makeKey('Alpha', { revealedKey: null })
     const [i] = buildReviewList([a], none, noRecords)
