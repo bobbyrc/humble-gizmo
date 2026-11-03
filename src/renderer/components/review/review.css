@@ -4,6 +4,14 @@
   box-sizing: border-box;
   overflow-y: auto;
 }
+/* Review adds its own top padding on top of .content's, which pushes its heading
+   ~20px below the other screens. Drop the extra so the heading lines up. */
+.review-screen {
+  padding-top: 0;
+}
+.review-untick {
+  white-space: nowrap;
+}
 .screen-header {
   display: flex;
   align-items: center;

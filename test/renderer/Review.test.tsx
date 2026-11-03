@@ -218,6 +218,28 @@ describe('Review', () => {
     expect((screen.getByLabelText('Game 1') as HTMLInputElement).checked).toBe(true)
   })
 
+  it('hides untick all for a group with nothing ticked', async () => {
+    mockGizmo({
+      buildReview: vi.fn(async () => [
+        item(1),
+        item(2, { ticked: false, tickable: false }, 'done_before')
+      ])
+    })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(
+      screen.queryByRole('button', { name: 'Untick all Already done in an earlier run' })
+    ).toBeNull()
+  })
+
+  it('hides untick all for a group once its last tick is cleared', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Untick all Will redeem' }))
+    expect(screen.queryByRole('button', { name: 'Untick all Will redeem' })).toBeNull()
+  })
+
   it('marks rows with set size and position', async () => {
     mockGizmo({ buildReview: vi.fn(async () => [item(1), item(2)]) })
     renderReview()
