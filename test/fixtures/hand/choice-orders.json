@@ -1,0 +1,58 @@
+[
+  {
+    "gamekey": "v3month0000000001",
+    "created": "2026-08-01T10:00:00.000000",
+    "choices_remaining": 0,
+    "product": {
+      "human_name": "August 2026 Humble Choice",
+      "category": "subscriptioncontent",
+      "choice_url": "august-2026",
+      "is_subs_v3_product": true
+    },
+    "tpkd_dict": { "all_tpks": [] }
+  },
+  {
+    "gamekey": "v2month0000000002",
+    "created": "2026-03-01T10:00:00.000000",
+    "choices_remaining": 2,
+    "product": {
+      "human_name": "March 2026 Humble Choice",
+      "category": "subscriptioncontent",
+      "choice_url": "march-2026",
+      "is_subs_v3_product": false
+    },
+    "tpkd_dict": {
+      "all_tpks": [
+        { "machine_name": "chosen_game_steam", "gamekey": "v2month0000000002", "human_name": "Chosen Game" }
+      ]
+    }
+  },
+  {
+    "gamekey": "donemonth00000003",
+    "created": "2026-01-01T10:00:00.000000",
+    "choices_remaining": 0,
+    "product": {
+      "human_name": "January 2026 Humble Choice",
+      "category": "subscriptioncontent",
+      "choice_url": "january-2026",
+      "is_subs_v3_product": false
+    },
+    "tpkd_dict": {
+      "all_tpks": [
+        { "machine_name": "jan_game_one_steam" },
+        { "machine_name": "jan_game_two_steam" }
+      ]
+    }
+  },
+  {
+    "gamekey": "bundle00000000004",
+    "created": "2026-02-01T10:00:00.000000",
+    "choices_remaining": 3,
+    "product": {
+      "human_name": "Some Bundle",
+      "category": "bundle",
+      "choice_url": "not-a-month"
+    },
+    "tpkd_dict": {}
+  }
+]
