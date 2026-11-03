@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { CHECK_UPDATES_NOW, NOT_AFFILIATED, NO_KEYRING_NOTICE } from '../../shared/copy'
 import type { Service, Settings as SettingsData } from '../../shared/types'
 import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
-import { Banner, Button, Checkbox, ConfirmDialog, Section } from '../components/ui'
+import { Banner, Button, Checkbox, ConfirmDialog } from '../components/ui'
+import ErrorBanner from '../components/settings/ErrorBanner'
 import UpdateToggle from '../components/settings/UpdateToggle'
 import '../components/settings/settings.css'
+
+// vite/client types aren't loaded in tsconfig.web, so declare the env object we read.
+declare global {
+  interface ImportMeta {
+    readonly env: Record<string, string | undefined>
+  }
+}
 
 const RELEASES_URL = 'https://github.com/bobbyrc/humble-gizmo/releases'
 
@@ -26,24 +34,39 @@ export default function Settings(): React.JSX.Element {
   const [signedOut, setSignedOut] = useState<Partial<Record<Service, boolean>>>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [apiKey, setApiKey] = useState('')
+  const [fail, setFail] = useState<{ e: unknown; retry: () => void } | null>(null)
 
-  useEffect(() => {
-    let live = true
-    void gizmo.getSettings().then((s) => {
-      if (!live) return
-      setSettings(s)
-      setApiKey(s.steamApiKey ?? '')
-    })
-    void gizmo.storageEncrypted().then((e) => live && setEncrypted(e))
-    return () => {
-      live = false
-    }
+  const load = useCallback((): void => {
+    setFail(null)
+    gizmo.getSettings().then(
+      (s) => {
+        setSettings(s)
+        setApiKey(s.steamApiKey ?? '')
+      },
+      (e: unknown) => setFail({ e, retry: load })
+    )
   }, [])
 
+  useEffect(() => {
+    load()
+    gizmo.storageEncrypted().then(setEncrypted, () => undefined)
+  }, [load])
+
   async function save(patch: Partial<SettingsData>): Promise<void> {
-    setSettings((s) => (s ? { ...s, ...patch } : s))
-    const next = await gizmo.setSettings(patch)
-    setSettings(next)
+    if (!settings) return
+    const previous: Partial<SettingsData> = {}
+    for (const k of Object.keys(patch) as (keyof SettingsData)[]) {
+      Object.assign(previous, { [k]: settings[k] })
+    }
+    setFail(null)
+    setSettings({ ...settings, ...patch })
+    try {
+      setSettings(await gizmo.setSettings(patch))
+    } catch (e) {
+      setSettings((s) => (s ? { ...s, ...previous } : s))
+      if ('steamApiKey' in previous) setApiKey(previous.steamApiKey ?? '')
+      setFail({ e, retry: () => void save(patch) })
+    }
   }
 
   async function checkNow(): Promise<void> {
@@ -56,26 +79,42 @@ export default function Settings(): React.JSX.Element {
   }
 
   async function signOut(service: Service): Promise<void> {
-    await gizmo.signOut(service)
-    setSignedOut((s) => ({ ...s, [service]: true }))
+    setFail(null)
+    try {
+      await gizmo.signOut(service)
+      setSignedOut((s) => ({ ...s, [service]: true }))
+    } catch (e) {
+      setFail({ e, retry: () => void signOut(service) })
+    }
   }
 
   async function deleteAll(): Promise<void> {
     setConfirmDelete(false)
-    await gizmo.deleteAllData()
-    go('welcome')
+    setFail(null)
+    try {
+      await gizmo.deleteAllData()
+      go('welcome')
+    } catch (e) {
+      setFail({ e, retry: () => void deleteAll() })
+    }
   }
 
-  if (!settings) return <h1>Settings</h1>
+  if (!settings) {
+    return (
+      <div className="settings">
+        <h1>Settings</h1>
+        {fail && <ErrorBanner error={fail.e} onRetry={fail.retry} />}
+      </div>
+    )
+  }
 
   const scheduleValue = SCHEDULE.find((o) => o.hours === settings.scheduleHours)?.value ?? 'off'
-  // vite/client types aren't loaded here, so type the env object by hand.
-  const env = (import.meta as { env?: Record<string, string | undefined> }).env
-  const version = env?.VITE_APP_VERSION
+  const version = import.meta.env.VITE_APP_VERSION
 
   return (
     <div className="settings">
       <h1>Settings</h1>
+      {fail && <ErrorBanner error={fail.e} onRetry={fail.retry} />}
 
       <div className="settings-group">
         <h2>Privacy</h2>
@@ -153,7 +192,7 @@ export default function Settings(): React.JSX.Element {
         ))}
       </div>
 
-      <Section label="Advanced" count={0}>
+      <Advanced>
         <div className="settings-field">
           <label htmlFor="steam-api-key">Steam Web API key</label>
           <input
@@ -174,7 +213,7 @@ export default function Settings(): React.JSX.Element {
             at steamcommunity.com/dev/apikey.
           </span>
         </div>
-      </Section>
+      </Advanced>
 
       <div className="settings-group">
         <h2>Data</h2>
@@ -200,5 +239,25 @@ export default function Settings(): React.JSX.Element {
         onCancel={() => setConfirmDelete(false)}
       />
     </div>
+  )
+}
+
+/** Collapsed-by-default disclosure. ui.tsx's Section always shows a count, which is noise here. */
+function Advanced({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const bodyId = useId()
+  return (
+    <section className="settings-group">
+      <button
+        type="button"
+        className="settings-disclosure"
+        aria-expanded={open}
+        aria-controls={open ? bodyId : undefined}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span aria-hidden="true">{open ? '▾' : '▸'}</span> Advanced
+      </button>
+      {open && <div id={bodyId}>{children}</div>}
+    </section>
   )
 }

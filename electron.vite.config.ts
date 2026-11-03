@@ -1,6 +1,9 @@
+import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+
+const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
 
 export default defineConfig({
   main: {},
@@ -11,6 +14,7 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
+    define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version) },
     plugins: [react()]
   }
 })

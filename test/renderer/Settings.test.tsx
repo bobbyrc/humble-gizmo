@@ -148,4 +148,102 @@ describe('Settings', () => {
     await waitFor(() => expect(g.deleteAllData).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('welcome'))
   })
+
+  it('rolls back and shows a retry banner when saving fails, then retries', async () => {
+    const g = mockGizmo()
+    await renderSettings()
+    g.setSettings.mockRejectedValueOnce(new Error('boom'))
+    const box = screen.getByLabelText('Launch at login') as HTMLInputElement
+    fireEvent.click(box)
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+    expect(box.checked).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(box.checked).toBe(true))
+    expect(screen.queryByText('Something went wrong. Try again.')).toBeNull()
+  })
+
+  it('restores the API key field when saving it fails', async () => {
+    const g = mockGizmo({
+      getSettings: vi.fn(async () => ({ ...DEFAULT_SETTINGS, steamApiKey: 'OLD' }))
+    })
+    await renderSettings()
+    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }))
+    const input = screen.getByLabelText('Steam Web API key') as HTMLInputElement
+    g.setSettings.mockRejectedValueOnce(new Error('boom'))
+    fireEvent.change(input, { target: { value: 'NEW' } })
+    fireEvent.blur(input)
+    await screen.findByText('Something went wrong. Try again.')
+    expect(input.value).toBe('OLD')
+  })
+
+  it('shows the session-expired banner for a SessionExpiredError', async () => {
+    const err = Object.assign(new Error('x'), { name: 'SessionExpiredError', service: 'steam' })
+    const g = mockGizmo({ signOut: vi.fn(async () => Promise.reject(err)) })
+    await renderSettings()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out of Steam' }))
+    expect(await screen.findByText('Sign in to Steam again')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(g.signIn).toHaveBeenCalledWith('steam')
+  })
+
+  it('shows the service-changed banner with a releases link', async () => {
+    const err = Object.assign(new Error('x'), { name: 'ServiceChangedError', service: 'humble' })
+    const g = mockGizmo({ signOut: vi.fn(async () => Promise.reject(err)) })
+    await renderSettings()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out of Humble' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Get the latest version' }))
+    expect(g.openExternal).toHaveBeenCalledWith(RELEASES)
+  })
+
+  it('shows a retry banner when sign out fails and retries it', async () => {
+    const g = mockGizmo()
+    await renderSettings()
+    g.signOut.mockRejectedValueOnce(new Error('boom'))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out of Humble' }))
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+    expect(screen.queryByText('Signed out')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('Signed out')).toBeTruthy()
+    expect(g.signOut).toHaveBeenCalledTimes(2)
+  })
+
+  it('stays on Settings with a retry banner when delete fails', async () => {
+    const g = mockGizmo()
+    await renderSettings()
+    g.deleteAllData.mockRejectedValueOnce(new Error('boom'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete all local data' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete everything' }))
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+    expect(screen.getByTestId('where').textContent).toBe('settings')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('welcome'))
+    expect(g.deleteAllData).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a retry banner when loading fails and reloads', async () => {
+    const g = mockGizmo()
+    g.getSettings.mockRejectedValueOnce(new Error('boom'))
+    render(
+      <NavProvider initial="settings">
+        <Settings />
+      </NavProvider>
+    )
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: CHECK_UPDATES_NOW })).toBeTruthy()
+  })
+
+  it('does not show a count on Advanced', async () => {
+    mockGizmo()
+    await renderSettings()
+    expect(screen.getByRole('button', { name: /Advanced/ }).textContent).not.toMatch(/0/)
+  })
+
+  it('shows the app version from the build', async () => {
+    vi.stubEnv('VITE_APP_VERSION', '1.2.3')
+    mockGizmo()
+    await renderSettings()
+    expect(screen.getByText('Version 1.2.3')).toBeTruthy()
+    vi.unstubAllEnvs()
+  })
 })

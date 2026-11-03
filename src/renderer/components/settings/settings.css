@@ -84,3 +84,14 @@
 .settings-input {
   min-width: 320px;
 }
+
+.settings-disclosure {
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}

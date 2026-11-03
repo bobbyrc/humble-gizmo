@@ -58,4 +58,16 @@ describe('Welcome', () => {
     await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('review'))
     expect(g.setSettings).toHaveBeenCalledWith({ consentShown: true, autoUpdate: true })
   })
+
+  it('shows a retry banner when Continue fails and Retry re-runs it', async () => {
+    const g = mockGizmo()
+    g.setSettings.mockRejectedValueOnce(new Error('boom'))
+    renderWelcome()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+    expect(screen.getByTestId('where').textContent).toBe('welcome')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('review'))
+    expect(g.setSettings).toHaveBeenCalledTimes(2)
+  })
 })
