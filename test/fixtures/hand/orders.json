@@ -1,0 +1,88 @@
+[
+  {
+    "gamekey": "gk1",
+    "subproducts": [
+      {
+        "machine_name": "game_one_bundle",
+        "tpkd_dict": {
+          "all_tpks": [
+            {
+              "machine_name": "game_one_steam",
+              "gamekey": "gk1",
+              "keyindex": 0,
+              "human_name": "  Game One  ",
+              "key_type_human_name": "Steam",
+              "steam_app_id": 1001,
+              "redeemed_key_val": "AAAAA-BBBBB-CCCCC",
+              "is_gift": false,
+              "is_expired": false
+            },
+            {
+              "machine_name": "game_two_steam",
+              "gamekey": "gk1",
+              "keyindex": 1,
+              "human_name": "Game Two",
+              "key_type_human_name": "Steam",
+              "steam_app_id": 0,
+              "is_gift": false,
+              "is_expired": false
+            },
+            {
+              "machine_name": "game_three_ebook",
+              "gamekey": "gk1",
+              "keyindex": 2,
+              "human_name": "Game Three",
+              "key_type_human_name": "Ebook",
+              "is_gift": false,
+              "is_expired": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "gamekey": "gk2",
+    "subproducts": [
+      {
+        "machine_name": "game_four_bundle",
+        "downloads": [],
+        "tpkd_dict": {
+          "all_tpks": [
+            {
+              "machine_name": "game_four_steam",
+              "gamekey": "gk2",
+              "keyindex": 0,
+              "human_name": "Game Four",
+              "key_type_human_name": "Steam",
+              "steam_app_id": 4004,
+              "redeemed_key_val": "",
+              "is_gift": true,
+              "is_expired": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "gamekey": "gk3",
+    "subproducts": [
+      {
+        "machine_name": "broken_bundle",
+        "tpkd_dict": "not-an-object"
+      }
+    ],
+    "extra": {
+      "all_tpks": [
+        {
+          "machine_name": "orphan_steam",
+          "keyindex": 0,
+          "human_name": "Orphan",
+          "key_type_human_name": "Steam",
+          "steam_app_id": 5005
+        }
+      ]
+    }
+  }
+]
