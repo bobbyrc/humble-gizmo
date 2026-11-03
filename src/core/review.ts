@@ -11,6 +11,9 @@ import type { TitleIndex } from './ownership'
 import { isRetryableError } from './steamCodes'
 import { normalizeTitle } from './titles'
 
+/** runId of the placeholder records the CSV export writes when it reveals a key. */
+export const EXPORT_RUN_ID = 'export'
+
 const GROUP_ORDER: ReviewGroup[] = [
   'will_redeem',
   'maybe_owned',
@@ -37,7 +40,8 @@ function classify(
     return r
   }
 
-  if (record) {
+  // An export-only placeholder says the key was revealed, not that anything was attempted.
+  if (record && !(record.outcome === 'pending' && record.runId === EXPORT_RUN_ID)) {
     if (record.outcome === 'redeemed' || record.outcome === 'owned') {
       return item('done_before', false, false)
     }

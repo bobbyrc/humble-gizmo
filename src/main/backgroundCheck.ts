@@ -29,9 +29,9 @@ export function unwrapIpcError(e: unknown): unknown {
 export function createBackgroundCheck(deps: {
   isRunActive(): boolean
   peekWillRedeemIds(): Promise<string[]>
-}): () => Promise<number> {
+}): { check: () => Promise<number>; reset: () => void } {
   let seen: Set<string> | null = null
-  return async () => {
+  const check = async (): Promise<number> => {
     if (deps.isRunActive()) return 0
     let ids: string[]
     try {
@@ -49,4 +49,9 @@ export function createBackgroundCheck(deps: {
     for (const id of current) if (!previous.has(id)) fresh++
     return fresh
   }
+  /** Forget the baseline (data was deleted or the account changed): the next check re-baselines. */
+  const reset = (): void => {
+    seen = null
+  }
+  return { check, reset }
 }

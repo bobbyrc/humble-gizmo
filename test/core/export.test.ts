@@ -205,6 +205,16 @@ describe('toExportCsv', () => {
     expect(parseCsv(csv.slice(BOM.length))[1][0]).toBe('a\rb"c')
   })
 
+  it('neutralises spreadsheet formulas with a leading apostrophe', () => {
+    for (const bad of ['=SUM(A1)', '+1', '-1', '@cmd', '\tx', '\rx']) {
+      const csv = toExportCsv([key({ id: '1', name: bad })], null)
+      const cell = parseCsv(csv.slice(BOM.length))[1][0]
+      expect(cell).toBe(`'${bad}`)
+    }
+    const ok = toExportCsv([key({ id: '1', name: 'Fine =x' })], null)
+    expect(parseCsv(ok.slice(BOM.length))[1][0]).toBe('Fine =x')
+  })
+
   it('does not quote plain fields', () => {
     const csv = toExportCsv([key({ id: '1', name: 'Plain Name' })], null)
     expect(csv).toContain('\r\nPlain Name,')

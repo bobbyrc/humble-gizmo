@@ -113,6 +113,20 @@ describe('SettingsStore', () => {
   })
 })
 
+describe('SettingsStore recovery', () => {
+  it('moves an unreadable settings.json aside and starts from defaults', async () => {
+    await fs.writeFile(path.join(dir, 'settings.json'), '{not json SECRET-VALUE')
+    const s = await SettingsStore.open(dir)
+    expect(s.get()).toEqual(DEFAULT_SETTINGS)
+    const files = await fs.readdir(dir)
+    const aside = files.find((f) => /^settings\.unreadable-\d+\.json$/.test(f))
+    expect(aside).toBeDefined()
+    expect(files).not.toContain('settings.json')
+    await s.update({ scheduleHours: 3 })
+    expect((await SettingsStore.open(dir)).get().scheduleHours).toBe(3)
+  })
+})
+
 describe('readJson', () => {
   it('rejects corrupt JSON without leaking file contents into the error', async () => {
     const file = path.join(dir, 'keys.json')

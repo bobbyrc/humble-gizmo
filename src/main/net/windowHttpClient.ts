@@ -33,7 +33,8 @@ export class WindowHttpClient implements HttpClient {
         partition: this.partition,
         sandbox: true,
         contextIsolation: true,
-        nodeIntegration: false
+        nodeIntegration: false,
+        spellcheck: false
       }
     })
     win.on('closed', () => {

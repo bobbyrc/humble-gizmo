@@ -1,29 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { GizmoApi } from '../shared/ipc'
 import type { RunEvent } from '../shared/types'
-
-const MARKER = 'GIZMO_ERR:'
-
-// Electron prefixes the message ("Error invoking remote method ..."), so find the marker.
-function translate(e: unknown): Error {
-  const msg = e instanceof Error ? e.message : String(e)
-  const at = msg.indexOf(MARKER)
-  if (at >= 0) {
-    try {
-      const info = JSON.parse(msg.slice(at + MARKER.length)) as {
-        name?: string
-        service?: string | null
-      }
-      const err = new Error(info.name ?? 'Error') as Error & { service?: string | null }
-      err.name = info.name ?? 'Error'
-      err.service = info.service ?? null
-      return err
-    } catch {
-      // fall through
-    }
-  }
-  return new Error('Unexpected error')
-}
+import { toBridgeError } from './ipcError'
 
 const call =
   (method: string) =>
@@ -31,7 +9,7 @@ const call =
     try {
       return (await ipcRenderer.invoke(`gizmo:${method}`, ...args)) as never
     } catch (e) {
-      throw translate(e)
+      throw toBridgeError(e)
     }
   }
 

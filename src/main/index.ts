@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { newKeysNotification } from '../shared/copy'
 import type { Settings } from '../shared/types'
-import { applyLinuxAutostart } from './autostart'
+import { applyLinuxAutostart, linuxExecPath } from './autostart'
 import { createBackgroundCheck } from './backgroundCheck'
 import { startScheduler } from './scheduler'
 import { createTray } from './tray'
@@ -14,6 +14,7 @@ import { runProbe } from './dev/probe'
 import { createAppWindow } from './windows/appWindow'
 import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
 import { installAppSessionGuard } from './net/allowlist'
+import { hardenSession } from './net/hardenSession'
 import { getUpdatesAllowed, setUpdatesAllowed } from './net/updatesFlag'
 import { autoUpdater } from 'electron-updater'
 import { guardUpdaterSession, initUpdater } from './updater'
@@ -64,6 +65,15 @@ async function openKeyStore(dir: string, codec: SecretCodec): Promise<KeyStore |
 const liveNotifications = new Set<Notification>()
 
 async function start(): Promise<void> {
+  // No spellcheck (it can send typed text out) and no permission grants on any session we use.
+  for (const ses of [
+    session.defaultSession,
+    session.fromPartition('persist:humble'),
+    session.fromPartition('persist:steam'),
+    session.fromPartition('electron-updater', { cache: false })
+  ]) {
+    hardenSession(ses)
+  }
   installAppSessionGuard(session.defaultSession, () => ({
     updatesAllowed: getUpdatesAllowed(),
     devServer: !app.isPackaged,
@@ -114,14 +124,17 @@ async function start(): Promise<void> {
         blockerId = null
       }
     },
-    checkForUpdates: () => updater.checkNow()
+    checkForUpdates: () => (updater ? updater.checkNow() : Promise.resolve('none' as const))
   }
 
   let quitting = false
+  // Declared before the handler so an early quit cannot hit an uninitialised binding.
+  let scheduler: ReturnType<typeof startScheduler> | null = null
+  let updater: ReturnType<typeof initUpdater> | null = null
   app.on('before-quit', () => {
     quitting = true
-    scheduler.stop()
-    updater.stop()
+    scheduler?.stop()
+    updater?.stop()
   })
   let tray: { destroy(): void } | null = null
 
@@ -164,7 +177,11 @@ async function start(): Promise<void> {
   }
   const applyLaunchAtLogin = (enabled: boolean): void => {
     if (process.platform === 'linux') {
-      void applyLinuxAutostart(enabled, homedir(), process.execPath).catch(() => undefined)
+      void applyLinuxAutostart(
+        enabled,
+        homedir(),
+        linuxExecPath(process.env, process.execPath)
+      ).catch(() => undefined)
     } else {
       app.setLoginItemSettings({ openAtLogin: enabled })
     }
@@ -185,7 +202,7 @@ async function start(): Promise<void> {
   }
   // Update checks reach GitHub, so initUpdater only runs them when autoUpdate is on or the user clicks check.
   guardUpdaterSession((name, opts) => session.fromPartition(name, opts), getUpdatesAllowed)
-  const updater = initUpdater({
+  updater = initUpdater({
     settings,
     updater: autoUpdater,
     setUpdatesAllowed,
@@ -221,12 +238,13 @@ async function start(): Promise<void> {
       quitting = false
     }
   })
-  const scheduler = startScheduler({
+  const backgroundCheck = createBackgroundCheck({
+    isRunActive: () => handlers.isRunActive(),
+    peekWillRedeemIds: () => handlers.peekWillRedeemIds()
+  })
+  scheduler = startScheduler({
     getHours: () => settings.get().scheduleHours,
-    check: createBackgroundCheck({
-      isRunActive: () => handlers.isRunActive(),
-      peekWillRedeemIds: () => handlers.peekWillRedeemIds()
-    }),
+    check: backgroundCheck.check,
     notify: (n) => showNotification(newKeysNotification(n)),
     notifySignedOut: (s) =>
       showNotification(`Sign in to ${s === 'humble' ? 'Humble' : 'Steam'} again to keep checking.`),
@@ -241,11 +259,12 @@ async function start(): Promise<void> {
     storageEncrypted: codec.encrypted,
     platform,
     onSettingsChanged: (s) => {
-      scheduler.reschedule()
+      scheduler?.reschedule()
       applyTray(s)
       applyLaunchAtLogin(s.launchAtLogin)
-      updater.onSettingsChanged(s)
-    }
+      updater?.onSettingsChanged(s)
+    },
+    onDataReset: backgroundCheck.reset
   })
   registerHandlers(ipcMain, handlers)
   applyTray(settings.get())
@@ -253,17 +272,14 @@ async function start(): Promise<void> {
 
   open()
   app.on('activate', showWindow)
-  app.on('second-instance', () => {
-    if (!appWindow || appWindow.isDestroyed()) return
-    if (appWindow.isMinimized()) appWindow.restore()
-    appWindow.focus()
-  })
+  app.on('second-instance', showWindow)
 }
 
-if (process.env.GIZMO_PROBE === '1') {
+// The dev tools open real sign-in windows and write files, so a packaged app never runs them.
+if (!app.isPackaged && process.env.GIZMO_PROBE === '1') {
   // Dev spike (npm run probe): no app window, only the sign-in windows.
   void app.whenReady().then(runProbe)
-} else if (process.env.GIZMO_CAPTURE === '1') {
+} else if (!app.isPackaged && process.env.GIZMO_CAPTURE === '1') {
   // Dev tool (npm run capture): saves sanitized fixtures, no app window.
   void app.whenReady().then(runCapture)
 } else if (!app.requestSingleInstanceLock()) {

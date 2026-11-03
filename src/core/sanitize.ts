@@ -203,6 +203,11 @@ export function hasLeaks(text: string, originals: ReadonlySet<string>): boolean 
   if (keys.some((k) => !k.startsWith('FAKE1-'))) return true
   if (new RegExp(EMAIL_GLOBAL.source).test(text)) return true
   if (IPV4.test(text) || REAL_STEAMID.test(text)) return true
-  for (const o of originals) if (o.length >= 4 && text.includes(o)) return true
+  for (const o of originals) {
+    if (o.length < 4) continue
+    if (text.includes(o)) return true
+    // JSON output escapes quotes and backslashes, so check that form too.
+    if (text.includes(JSON.stringify(o).slice(1, -1))) return true
+  }
   return false
 }

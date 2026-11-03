@@ -20,7 +20,9 @@ export function selectExportKeys(keys: HumbleKey[], opts: ExportOptions): Humble
 }
 
 // RFC 4180: quote fields containing comma, double quote, CR or LF; double inner quotes.
-function escapeField(value: string): string {
+function escapeField(input: string): string {
+  // Spreadsheets run cells that start with these as formulas; a leading ' keeps them text.
+  const value = /^[=+\-@\t\r]/.test(input) ? `'${input}` : input
   if (/[",\r\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`
   }
