@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RedeemRunner, systemClock, type Clock } from '../../src/core/runner'
 import { SessionExpiredError } from '../../src/shared/errors'
 import type { HumbleKey, KeyRecord, RunEvent } from '../../src/shared/types'
@@ -44,6 +44,7 @@ function setup(opts: {
   reveal?: (k: HumbleKey) => Promise<string | null>
   register?: (key: string) => Promise<number>
   initial?: KeyRecord[]
+  onEvent?: (e: RunEvent, runner: RedeemRunner) => void
 }): {
   clock: FakeClock
   log: string[]
@@ -72,7 +73,10 @@ function setup(opts: {
       }
     },
     clock,
-    onEvent: (e) => events.push(e)
+    onEvent: (e) => {
+      events.push(e)
+      opts.onEvent?.(e, runner)
+    }
   })
   return { clock, log, records, events, runner }
 }
@@ -126,6 +130,16 @@ describe('RedeemRunner', () => {
     expect(records.get(mkKey(1).id)).toMatchObject({ outcome: 'error', resultCode: -1 })
     expect(records.get(mkKey(2).id)?.outcome).toBe('redeemed')
     expect(summary).toEqual({ redeemed: 1, owned: 0, errors: 1, remaining: 0 })
+  })
+
+  it('persists a pre-revealed key as pending before calling Steam', async () => {
+    const { runner, log } = setup({})
+    await runner.run([mkKey(1, GOOD(1))], 'r')
+    expect(log).toEqual([
+      `upsert:${mkKey(1).id}:pending`,
+      `register:${GOOD(1)}`,
+      `upsert:${mkKey(1).id}:redeemed`
+    ])
   })
 
   it('records a malformed key as error -2 without calling Steam', async () => {
@@ -242,17 +256,61 @@ describe('RedeemRunner', () => {
   })
 
   it('stop() between keys stops before the next key', async () => {
-    const { runner, events, records } = setup({})
-    const inner = (runner as unknown as { deps: { onEvent: (e: RunEvent) => void } }).deps
-    const orig = inner.onEvent
-    inner.onEvent = (e) => {
-      orig(e)
-      if (e.type === 'key-done') runner.stop()
-    }
+    const { runner, events, records } = setup({
+      onEvent: (e, r) => {
+        if (e.type === 'key-done') r.stop()
+      }
+    })
     const summary = await runner.run([mkKey(1), mkKey(2)], 'r')
     expect(summary).toEqual({ redeemed: 1, owned: 0, errors: 0, remaining: 1 })
     expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'user' })
     expect(records.has(mkKey(2).id)).toBe(false)
+  })
+})
+
+describe('systemClock.sleepUntil (fake timers)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  async function settled(p: Promise<void>): Promise<boolean> {
+    let done = false
+    p.then(
+      () => (done = true),
+      () => (done = true)
+    )
+    await vi.advanceTimersByTimeAsync(0)
+    return done
+  }
+
+  it('resumes within one 30 s chunk after the wall clock jumps past the target', async () => {
+    vi.useFakeTimers()
+    const start = Date.now()
+    const p = systemClock.sleepUntil(new Date(start + HOUR), new AbortController().signal)
+    vi.setSystemTime(start + 2 * HOUR)
+    await vi.advanceTimersByTimeAsync(30_000)
+    await expect(p).resolves.toBeUndefined()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('waits the full duration on a normal clock', async () => {
+    vi.useFakeTimers()
+    const p = systemClock.sleepUntil(new Date(Date.now() + HOUR), new AbortController().signal)
+    await vi.advanceTimersByTimeAsync(59 * 60_000)
+    expect(await settled(p)).toBe(false)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(await settled(p)).toBe(true)
+  })
+
+  it('rejects on abort after the first chunk and leaves no timers', async () => {
+    vi.useFakeTimers()
+    const ac = new AbortController()
+    const p = systemClock.sleepUntil(new Date(Date.now() + HOUR), ac.signal)
+    const assertion = expect(p).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.advanceTimersByTimeAsync(31_000)
+    ac.abort()
+    await assertion
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
 

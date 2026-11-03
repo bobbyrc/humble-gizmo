@@ -128,9 +128,9 @@ export class RedeemRunner {
             await finishKey(key, null, REVEAL_FAILED)
             continue
           }
-          // Durable before Steam is called: a crash must never lose a revealed key.
-          await persist(key, revealed, 'pending', null)
         }
+        // Durable before Steam is called: a crash must never lose a revealed key.
+        if (!stored?.revealedKey) await persist(key, revealed, 'pending', null)
         if (!isValidSteamKeyFormat(revealed)) {
           await finishKey(key, revealed, BAD_FORMAT)
           continue
