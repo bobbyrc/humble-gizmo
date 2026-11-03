@@ -42,5 +42,10 @@ export async function readJson<T>(file: string): Promise<T | null> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
   }
-  return JSON.parse(text) as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    // SyntaxError messages quote a snippet of the file, which can include a key value.
+    throw new Error(`corrupt JSON in ${path.basename(file)}`)
+  }
 }

@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { readJson } from '../../src/main/store/atomicJson'
 import { KeyStore } from '../../src/main/store/keyStore'
 import { SettingsStore } from '../../src/main/store/settingsStore'
 import { plaintextCodec, type SecretCodec } from '../../src/main/store/codec'
@@ -109,5 +110,19 @@ describe('SettingsStore', () => {
     const next = await s.update({ scheduleHours: 6 })
     expect(next.scheduleHours).toBe(6)
     expect((await SettingsStore.open(dir)).get().scheduleHours).toBe(6)
+  })
+})
+
+describe('readJson', () => {
+  it('rejects corrupt JSON without leaking file contents into the error', async () => {
+    const file = path.join(dir, 'keys.json')
+    await fs.writeFile(file, '{"x":"AAAAA-BBBBB-CCCCC')
+    const err = await readJson(file).then(
+      () => null,
+      (e: unknown) => e as Error
+    )
+    expect(err).toBeInstanceOf(Error)
+    expect(err?.message).toContain('corrupt JSON')
+    expect(err?.message).not.toContain('AAAAA')
   })
 })
