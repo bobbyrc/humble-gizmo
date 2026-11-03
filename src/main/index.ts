@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, powerSaveBlocker, session, shell } from 'electron'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
+import { runCapture } from './dev/capture'
 import { runProbe } from './dev/probe'
 import { createAppWindow } from './windows/appWindow'
 import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
@@ -125,6 +126,9 @@ async function start(): Promise<void> {
 if (process.env.GIZMO_PROBE === '1') {
   // Dev spike (npm run probe): no app window, only the sign-in windows.
   void app.whenReady().then(runProbe)
+} else if (process.env.GIZMO_CAPTURE === '1') {
+  // Dev tool (npm run capture): saves sanitized fixtures, no app window.
+  void app.whenReady().then(runCapture)
 } else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
