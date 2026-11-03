@@ -1,7 +1,7 @@
 import type { HumbleKey, OwnedData, Ownership } from '../shared/types'
-import { normalizeTitle } from './titles'
+import { normalizationDroppedLetters, normalizeTitle } from './titles'
 
-type Entry = { name: string; tokens: string[]; set: Set<string> }
+type Entry = { name: string; tokens: string[]; set: Set<string>; lossy: boolean }
 declare const titleIndexBrand: unique symbol
 export type TitleIndex = {
   readonly [titleIndexBrand]: true
@@ -18,7 +18,7 @@ export function buildTitleIndex(owned: OwnedData): TitleIndex {
     const tokens = normalizeTitle(name)
     if (tokens.length === 0) continue
     const set = new Set(tokens)
-    const i = entries.push({ name, tokens, set }) - 1
+    const i = entries.push({ name, tokens, set, lossy: normalizationDroppedLetters(name) }) - 1
     for (const t of set) {
       const list = byToken.get(t)
       if (list) list.push(i)
@@ -50,7 +50,7 @@ export function classifyOwnershipIndexed(
   for (const i of candidates) {
     const e = index.entries[i]
     if (e.tokens.length === tokens.length && e.tokens.every((t, j) => t === tokens[j])) {
-      exact ??= e
+      if (!exact || (exact.lossy && !e.lossy)) exact = e
       continue
     }
     let inter = 0
@@ -76,7 +76,7 @@ export function classifyOwnershipIndexed(
   }
 
   if (exact) {
-    return key.steamAppId !== null
+    return key.steamAppId !== null && !exact.lossy && !normalizationDroppedLetters(key.name)
       ? { ownership: 'owned', matchedName: exact.name }
       : { ownership: 'maybe', matchedName: exact.name }
   }

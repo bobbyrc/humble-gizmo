@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeTitle } from '../../src/core/titles'
+import { normalizationDroppedLetters, normalizeTitle } from '../../src/core/titles'
 import {
   buildTitleIndex,
   classifyOwnership,
@@ -97,5 +97,35 @@ describe('classifyOwnership', () => {
     expect(classifyOwnershipIndexed(makeKey('Spirit', 5), owned, idx)).toEqual(
       classifyOwnership(makeKey('Spirit', 5), owned)
     )
+  })
+})
+
+describe('fix round 1', () => {
+  it('mixed-script titles never confidently owned', () => {
+    expect(
+      classifyOwnership(makeKey('Persona 5 ロイヤル', 999), ownedOf([1, 'Persona 5']))
+    ).toEqual({ ownership: 'maybe', matchedName: 'Persona 5' })
+    expect(
+      classifyOwnership(makeKey('Børderlands', 999), ownedOf([1, 'Børderlands'])).ownership
+    ).toBe('maybe')
+    expect(
+      classifyOwnership(makeKey('Pokémon-like: Café', 999), ownedOf([1, 'Pokemon like Cafe']))
+        .ownership
+    ).toBe('owned')
+  })
+  it('normalizationDroppedLetters', () => {
+    expect(normalizationDroppedLetters('Café')).toBe(false)
+    expect(normalizationDroppedLetters('ロイヤル')).toBe(true)
+    expect(normalizationDroppedLetters('Straße æ ø')).toBe(true)
+  })
+  it('edition strip is safe', () => {
+    expect(normalizeTitle('Special Edition')).toEqual(['special', 'edition'])
+    expect(normalizeTitle('Edition')).toEqual(['edition'])
+    expect(normalizeTitle('The Witcher 3: Wild Hunt - Game of the Year Edition')).toEqual([
+      'witcher',
+      '3',
+      'wild',
+      'hunt'
+    ])
   })
 })
