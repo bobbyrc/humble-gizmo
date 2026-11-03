@@ -10,7 +10,8 @@ import {
   getRunEvents,
   isRunActive,
   nameFor,
-  resetRunSession
+  resetRunSession,
+  setFreshLibrary
 } from '../../src/renderer/runState'
 
 afterEach(() => {
@@ -347,5 +348,17 @@ describe('Review refresh and reattach', () => {
     process.off('unhandledRejection', unhandled)
     expect(api.signIn).toHaveBeenCalledWith('steam')
     expect(unhandled).not.toHaveBeenCalled()
+  })
+
+  it('uses the library handed over by sign in once, then loads again', async () => {
+    const g = mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    setFreshLibrary({ keys: 1, steamKeys: 1, failedOrders: 0 })
+    renderReview()
+    expect(await screen.findByText('Ready to redeem 1 games')).toBeTruthy()
+    expect(g.loadLibrary).not.toHaveBeenCalled()
+    cleanup()
+    renderReview()
+    expect(await screen.findByText('Ready to redeem 1 games')).toBeTruthy()
+    expect(g.loadLibrary).toHaveBeenCalledTimes(1)
   })
 })

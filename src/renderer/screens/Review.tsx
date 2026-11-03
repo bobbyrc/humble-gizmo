@@ -7,7 +7,7 @@ import { Banner, Button, Section, Spinner } from '../components/ui'
 import { VirtualRows } from '../components/review/VirtualRows'
 import { ReviewRow } from '../components/review/ReviewRow'
 import ErrorBanner from '../components/ErrorBanner'
-import { beginRunSession, isRunActive, setLastReview } from '../runState'
+import { beginRunSession, isRunActive, setLastReview, takeFreshLibrary } from '../runState'
 import '../components/review/review.css'
 
 const GROUP_ORDER: ReviewGroup[] = [
@@ -36,8 +36,8 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   const [failedOrders, setFailedOrders] = useState(0)
 
   const fetchReview = useCallback(() => {
-    gizmo
-      .loadLibrary()
+    const fresh = takeFreshLibrary()
+    ;(fresh ? Promise.resolve(fresh) : gizmo.loadLibrary())
       .then(async (summary) => {
         const result = await gizmo.buildReview()
         setFailedOrders(summary.failedOrders)

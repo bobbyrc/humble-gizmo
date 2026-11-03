@@ -1,7 +1,21 @@
+import type { LibrarySummary } from '../shared/ipc'
 import type { ReviewItem, RunEvent } from '../shared/types'
 import { gizmo } from './gizmo'
 
 let lastReview: ReviewItem[] = []
+let freshLibrary: LibrarySummary | null = null
+
+/** SignIn hands the summary it just loaded to Review so Review doesn't fetch every order twice. */
+export function setFreshLibrary(summary: LibrarySummary): void {
+  freshLibrary = summary
+}
+
+/** Returns the handed-over summary once, then null. */
+export function takeFreshLibrary(): LibrarySummary | null {
+  const summary = freshLibrary
+  freshLibrary = null
+  return summary
+}
 
 /** Remembers the items shown on Review so Run can turn event ids back into game names. */
 export function setLastReview(items: ReviewItem[]): void {
@@ -60,5 +74,6 @@ export function resetRunSession(): void {
   stopGizmo = null
   events = []
   active = false
+  freshLibrary = null
   listeners.clear()
 }
