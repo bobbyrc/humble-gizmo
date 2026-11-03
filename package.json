@@ -1,6 +1,7 @@
 {
   "name": "humble-gizmo",
-  "version": "1.0.0",
+  "productName": "Humble Gizmo",
+  "version": "0.1.0",
   "description": "Humble Gizmo: redeem Humble Bundle Steam keys",
   "main": "./out/main/index.js",
   "author": "bcraig",
