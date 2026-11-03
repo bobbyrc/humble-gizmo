@@ -1,0 +1,97 @@
+.muted {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: var(--fs-sm);
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.welcome h1 {
+  margin: 0;
+  font-size: var(--fs-xxl);
+  font-weight: 600;
+}
+
+.welcome p {
+  margin: 0;
+}
+
+.welcome-toggle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s3) var(--s4);
+}
+
+.welcome-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+.settings h1 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  align-items: flex-start;
+}
+
+.settings-group h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: flex-start;
+}
+
+.settings-input,
+.settings-select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s2) var(--s3);
+}
+
+.settings-input {
+  min-width: 320px;
+}
+
+.settings-disclosure {
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
