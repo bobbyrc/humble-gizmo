@@ -106,7 +106,7 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   }
 
   return (
-    <div className="screen-pad">
+    <div className="screen-pad review-screen">
       <div className="screen-header">
         <h1>{items.length === 0 ? 'Redeem' : `Ready to redeem ${n} games`}</h1>
         {items.length > 0 && (
@@ -122,6 +122,7 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
       {GROUP_ORDER.map((group) => {
         const groupItems = byGroup.get(group)
         if (!groupItems || groupItems.length === 0) return null
+        const anyTicked = groupItems.some((i) => ticks[i.key.id])
         return (
           <Section
             key={group}
@@ -130,14 +131,16 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
             hint={HINTS[group]}
             defaultOpen={group === 'will_redeem'}
             actions={
-              <button
-                type="button"
-                className="btn btn-link"
-                aria-label={`Untick all ${GROUP_LABELS[group]}`}
-                onClick={() => untickAll(group)}
-              >
-                Untick all
-              </button>
+              anyTicked && (
+                <button
+                  type="button"
+                  className="btn btn-link review-untick"
+                  aria-label={`Untick all ${GROUP_LABELS[group]}`}
+                  onClick={() => untickAll(group)}
+                >
+                  Untick all
+                </button>
+              )
             }
           >
             <VirtualRows
