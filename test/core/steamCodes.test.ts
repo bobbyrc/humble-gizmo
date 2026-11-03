@@ -92,6 +92,7 @@ describe('parseRegisterKeyResponse', () => {
 
   it('throws SessionExpiredError on a 3xx status', () => {
     expect(() => parseRegisterKeyResponse(302, '')).toThrow(SessionExpiredError)
+    expect(() => parseRegisterKeyResponse(0, '')).toThrow(SessionExpiredError)
   })
 
   it('throws SessionExpiredError tagged with steam', () => {
