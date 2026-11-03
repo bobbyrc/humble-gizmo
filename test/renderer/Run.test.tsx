@@ -17,6 +17,7 @@ function setup(mountNow = true): {
   api: ReturnType<typeof mockGizmo>
   unsub: ReturnType<typeof vi.fn>
   mount: () => void
+  raw: (e: RunEvent) => void
 } {
   let cb: (e: RunEvent) => void = () => undefined
   const unsub = vi.fn()
@@ -37,7 +38,7 @@ function setup(mountNow = true): {
     )
   }
   if (mountNow) mount()
-  return { emit: (e) => act(() => cb(e)), api, unsub, mount }
+  return { emit: (e) => act(() => cb(e)), api, unsub, mount, raw: (e) => cb(e) }
 }
 
 describe('Run', () => {
@@ -137,5 +138,24 @@ describe('Run', () => {
     expect(unsub).toHaveBeenCalledTimes(1)
     beginRunSession()
     expect(api.onRunEvent).toHaveBeenCalledTimes(2)
+  })
+
+  it('applies events buffered between render and subscribe', () => {
+    const { raw } = setup(false)
+    let fired = false
+    function EmitDuringRender(): null {
+      if (!fired) {
+        fired = true
+        raw({ type: 'finished', summary: { redeemed: 2, owned: 0, errors: 0, remaining: 0 } })
+      }
+      return null
+    }
+    render(
+      <NavProvider initial="run">
+        <Run />
+        <EmitDuringRender />
+      </NavProvider>
+    )
+    expect(screen.getByText('Done — 2 added, 0 already owned, 0 errors')).toBeTruthy()
   })
 })

@@ -53,13 +53,23 @@ function reduce(state: RunState, e: RunEvent): RunState {
   }
 }
 
+const EMPTY: RunState = { rows: [], status: { kind: 'running' } }
+
 export default function Run(): React.JSX.Element {
   const { go } = useNav()
-  const [{ rows, status }, setState] = useState<RunState>(() =>
-    getRunEvents().reduce(reduce, { rows: [], status: { kind: 'running' } })
-  )
+  const [initial] = useState(() => {
+    const seen = getRunEvents().slice()
+    return { seen: seen.length, state: seen.reduce(reduce, EMPTY) }
+  })
+  const [{ rows, status }, setState] = useState<RunState>(initial.state)
 
-  useEffect(() => subscribeRun((e) => setState((s) => reduce(s, e))), [])
+  useEffect(() => {
+    const unsub = subscribeRun((e) => setState((s) => reduce(s, e)))
+    // Events buffered between the first render and this subscription.
+    const missed = getRunEvents().slice(initial.seen)
+    if (missed.length > 0) setState((s) => missed.reduce(reduce, s)) // eslint-disable-line react-hooks/set-state-in-effect
+    return unsub
+  }, [initial.seen])
 
   const counts =
     status.kind === 'finished'
