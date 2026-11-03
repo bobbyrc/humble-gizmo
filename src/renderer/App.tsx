@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Service, Settings } from '../shared/types'
 import { gizmo } from './gizmo'
 import { NavProvider, useNav, type Screen } from './nav'
-import { Spinner } from './components/ui'
+import { Banner, Spinner } from './components/ui'
 import Welcome from './screens/Welcome'
 import SignIn from './screens/SignIn'
 import Review from './screens/Review'
@@ -138,16 +138,42 @@ function Shell({ initialStatus }: { initialStatus: Status }): React.JSX.Element 
 
 function App(): React.JSX.Element {
   const [loaded, setLoaded] = useState<{ settings: Settings; status: Status } | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([gizmo.getSettings(), gizmo.status()]).then(([settings, status]) => {
-      if (!cancelled) setLoaded({ settings, status })
-    })
+    Promise.all([gizmo.getSettings(), gizmo.status()]).then(
+      ([settings, status]) => {
+        if (!cancelled) setLoaded({ settings, status })
+      },
+      () => {
+        if (!cancelled) setFailed(true)
+      }
+    )
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [attempt])
+
+  if (failed) {
+    return (
+      <div className="loading">
+        <Banner
+          tone="danger"
+          action={{
+            label: 'Retry',
+            onClick: () => {
+              setFailed(false)
+              setAttempt((n) => n + 1)
+            }
+          }}
+        >
+          Couldn&apos;t start. Try again.
+        </Banner>
+      </div>
+    )
+  }
 
   if (!loaded) {
     return (

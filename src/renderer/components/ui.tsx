@@ -101,12 +101,12 @@ export function Section({
   // The header is a <button>, so interactive actions cannot nest inside it; they sit beside it.
   return (
     <section className="section">
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div className="section-header">
         <button
           type="button"
           className="section-head"
           aria-expanded={open}
-          aria-controls={bodyId}
+          aria-controls={open ? bodyId : undefined}
           onClick={() => setOpen((o) => !o)}
         >
           <span className="section-chevron" aria-hidden="true">
@@ -168,26 +168,31 @@ function OpenDialog({
 
   const canConfirm = requireTyped === undefined || typed === requireTyped
 
-  function onKeyDown(e: React.KeyboardEvent): void {
-    if (e.key === 'Escape') {
-      e.stopPropagation()
-      onCancel()
-      return
+  // Document-level so Esc and the Tab trap work even if focus has left the dialog.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') {
+        onCancel()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
+      if (items.length === 0) return
+      const firstEl = items[0]
+      const lastEl = items[items.length - 1]
+      const active = document.activeElement
+      const inside = dialogRef.current?.contains(active) ?? false
+      if (e.shiftKey && (active === firstEl || !inside)) {
+        e.preventDefault()
+        lastEl.focus()
+      } else if (!e.shiftKey && (active === lastEl || !inside)) {
+        e.preventDefault()
+        firstEl.focus()
+      }
     }
-    if (e.key !== 'Tab') return
-    const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
-    if (items.length === 0) return
-    const firstEl = items[0]
-    const lastEl = items[items.length - 1]
-    const active = document.activeElement
-    if (e.shiftKey && (active === firstEl || !dialogRef.current?.contains(active))) {
-      e.preventDefault()
-      lastEl.focus()
-    } else if (!e.shiftKey && (active === lastEl || !dialogRef.current?.contains(active))) {
-      e.preventDefault()
-      firstEl.focus()
-    }
-  }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onCancel])
 
   return (
     <div className="scrim">
@@ -197,7 +202,6 @@ function OpenDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onKeyDown={onKeyDown}
       >
         <h2 id={titleId} className="dialog-title">
           {title}

@@ -3,13 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { DEFAULT_SETTINGS } from '../../src/shared/types'
 import { PRIVACY_TITLE } from '../../src/shared/copy'
 import { mockGizmo } from './mockGizmo'
+import App from '../../src/renderer/App'
+import { gizmo } from '../../src/renderer/gizmo'
 
 afterEach(cleanup)
 
-// App reads window.gizmo at import time, so import it after the mock is installed.
 async function renderApp(): Promise<void> {
-  vi.resetModules()
-  const { default: App } = await import('../../src/renderer/App')
   render(<App />)
 }
 
@@ -60,5 +59,26 @@ describe('App', () => {
     fireEvent.click(row)
     expect(api.signIn).toHaveBeenCalledWith('humble')
     expect(await screen.findByText(/Humble.*Signed in/)).toBeTruthy()
+  })
+
+  it('shows a retryable error when startup loading fails', async () => {
+    const getSettings = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ ...DEFAULT_SETTINGS, consentShown: true })
+    mockGizmo({ getSettings })
+    await renderApp()
+    expect(await screen.findByText("Couldn't start. Try again.")).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('heading', { name: 'Redeem' })).toBeTruthy()
+  })
+})
+
+describe('gizmo binding', () => {
+  it('sees a mock installed after the module was imported', async () => {
+    mockGizmo()
+    const second = mockGizmo({ storageEncrypted: vi.fn(async () => false) })
+    expect(await gizmo.storageEncrypted()).toBe(false)
+    expect(second.storageEncrypted).toHaveBeenCalled()
   })
 })
