@@ -4,7 +4,7 @@ import type { Service, Settings as SettingsData } from '../../shared/types'
 import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
 import { Banner, Button, Checkbox, ConfirmDialog } from '../components/ui'
-import ErrorBanner from '../components/settings/ErrorBanner'
+import ErrorBanner from '../components/ErrorBanner'
 import UpdateToggle from '../components/settings/UpdateToggle'
 import '../components/settings/settings.css'
 

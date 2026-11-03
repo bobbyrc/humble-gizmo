@@ -69,6 +69,15 @@ describe('Run', () => {
     expect(screen.getByText(/Continuing at .*3:42/)).toBeTruthy()
   })
 
+  it('shows the attempt number from the second rate-limit on', () => {
+    const { emit } = setup()
+    const resumeAt = new Date(2026, 0, 1, 15, 42).toISOString()
+    emit({ type: 'rate-limited', id: 'a', resumeAt, attempt: 1 })
+    expect(screen.queryByText(/Attempt/)).toBeNull()
+    emit({ type: 'rate-limited', id: 'a', resumeAt, attempt: 3 })
+    expect(screen.getByText(/Attempt 3/)).toBeTruthy()
+  })
+
   it('prompts to sign in again to Steam', () => {
     const { emit, api } = setup()
     emit({ type: 'stopped', reason: 'steam-signed-out' })

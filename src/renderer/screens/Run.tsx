@@ -11,7 +11,7 @@ import '../components/review/review.css'
 type Finished = { id: string; outcome: Exclude<Outcome, 'pending'>; code: number | null }
 type Status =
   | { kind: 'running' }
-  | { kind: 'rate-limited'; time: string }
+  | { kind: 'rate-limited'; time: string; attempt: number }
   | { kind: 'stopped'; reason: Extract<RunEvent, { type: 'stopped' }>['reason'] }
   | { kind: 'finished'; summary: RunSummary }
 
@@ -40,6 +40,7 @@ function reduce(state: RunState, e: RunEvent): RunState {
         ...state,
         status: {
           kind: 'rate-limited',
+          attempt: e.attempt,
           time: new Date(e.resumeAt).toLocaleTimeString([], {
             hour: 'numeric',
             minute: '2-digit'
@@ -87,7 +88,12 @@ export default function Run(): React.JSX.Element {
   function banner(): React.JSX.Element | null {
     switch (status.kind) {
       case 'rate-limited':
-        return <Banner tone="warn">{rateLimitMessage(status.time)}</Banner>
+        return (
+          <Banner tone="warn">
+            {rateLimitMessage(status.time)}
+            {status.attempt > 1 && <span className="run-attempt"> Attempt {status.attempt}</span>}
+          </Banner>
+        )
       case 'finished':
         return (
           <Banner tone="ok" action={{ label: 'Back to review', onClick: () => go('review') }}>

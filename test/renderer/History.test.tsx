@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import History from '../../src/renderer/screens/History'
 import { NavProvider } from '../../src/renderer/nav'
-import { mockGizmo } from './mockGizmo'
+import { bridgeError, mockGizmo } from './mockGizmo'
 import type { KeyRecord } from '../../src/shared/types'
 
 afterEach(cleanup)
@@ -151,5 +151,17 @@ describe('History', () => {
     renderScreen()
     expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+  })
+
+  it('shows the service-changed banner for a bridge ServiceChangedError', async () => {
+    const api = mockGizmo({
+      history: vi.fn().mockRejectedValue(bridgeError('ServiceChangedError', 'steam'))
+    })
+    renderScreen()
+    expect(await screen.findByText('Steam changed something — check for an update.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Get the latest version' }))
+    expect(api.openExternal).toHaveBeenCalledWith(
+      'https://github.com/bobbyrc/humble-gizmo/releases'
+    )
   })
 })

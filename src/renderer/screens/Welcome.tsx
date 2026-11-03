@@ -3,7 +3,7 @@ import { NOT_AFFILIATED, PRIVACY_LINE_1, PRIVACY_LINE_2, PRIVACY_TITLE } from '.
 import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
 import { Button } from '../components/ui'
-import ErrorBanner from '../components/settings/ErrorBanner'
+import ErrorBanner from '../components/ErrorBanner'
 import UpdateToggle from '../components/settings/UpdateToggle'
 import '../components/settings/settings.css'
 
