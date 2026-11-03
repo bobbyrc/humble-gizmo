@@ -89,6 +89,58 @@ describe('Choice', () => {
     expect(screen.queryByText('Claimed. New keys will appear in your review list.')).toBeNull()
   })
 
+  it('refetches after a failed claim and offers Reload without re-claiming', async () => {
+    const list = vi.fn(async () => [month()])
+    const api = mockGizmo({
+      listChoiceMonths: list,
+      claimChoices: vi.fn(async () => {
+        throw new Error('boom')
+      })
+    })
+    renderChoice()
+    fireEvent.click(await screen.findByLabelText(/Game a/))
+    fireEvent.click(screen.getByRole('button', { name: 'Claim 1' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Claim 1' })[1])
+    await screen.findByText('Something went wrong. Try again.')
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3))
+    expect(api.claimChoices).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a second confirm while a claim is in flight', async () => {
+    let release: () => void = () => undefined
+    const api = mockGizmo({
+      listChoiceMonths: vi.fn(async () => [month()]),
+      claimChoices: vi.fn(
+        () =>
+          new Promise<{ failed: string[] }>((res) => {
+            release = () => res({ failed: [] })
+          })
+      )
+    })
+    renderChoice()
+    fireEvent.click(await screen.findByLabelText(/Game a/))
+    fireEvent.click(screen.getByRole('button', { name: 'Claim 1' }))
+    const confirm = screen.getAllByRole('button', { name: 'Claim 1' })[1]
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    expect(api.claimChoices).toHaveBeenCalledTimes(1)
+    release()
+    await screen.findByText('Claimed. New keys will appear in your review list.')
+  })
+
+  it('hides Claim all when nothing is claimable', async () => {
+    mockGizmo({
+      listChoiceMonths: vi.fn(async () => [
+        month({ usesChoices: false, games: [game('d', { claimable: false })] })
+      ])
+    })
+    renderChoice()
+    await screen.findByRole('button', { name: 'Claim on Humble' })
+    expect(screen.queryByRole('button', { name: 'Claim all' })).toBeNull()
+  })
+
   it('opens non-claimable games on Humble', async () => {
     const api = mockGizmo({ listChoiceMonths: vi.fn(async () => [month()]) })
     renderChoice()

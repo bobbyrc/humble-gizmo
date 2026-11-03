@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChoiceMonth } from '../../shared/types'
 import { serviceChanged } from '../../shared/copy'
 import { errorName, gizmo } from '../gizmo'
@@ -9,7 +9,15 @@ import '../components/choice/choice.css'
 type Result =
   { kind: 'ok' } | { kind: 'failed'; titles: string[] } | { kind: 'error'; error: unknown }
 
-function ErrorBanner({ error, retry }: { error: unknown; retry: () => void }): React.JSX.Element {
+function ErrorBanner({
+  error,
+  retry,
+  retryLabel = 'Retry'
+}: {
+  error: unknown
+  retry: () => void
+  retryLabel?: string
+}): React.JSX.Element {
   const name = errorName(error)
   const service = (error as { service?: string })?.service
   if (name === 'ServiceChangedError') {
@@ -40,7 +48,7 @@ function ErrorBanner({ error, retry }: { error: unknown; retry: () => void }): R
     )
   }
   return (
-    <Banner tone="danger" action={{ label: 'Retry', onClick: retry }}>
+    <Banner tone="danger" action={{ label: retryLabel, onClick: retry }}>
       Something went wrong. Try again.
     </Banner>
   )
@@ -51,6 +59,7 @@ export default function Choice(): React.JSX.Element {
   const [loadError, setLoadError] = useState<unknown>(null)
   const [result, setResult] = useState<Result | null>(null)
   const [busy, setBusy] = useState(false)
+  const inFlight = useRef(false)
 
   const [nonce, setNonce] = useState(0)
   const load = useCallback(() => setNonce((n) => n + 1), [])
@@ -75,6 +84,8 @@ export default function Choice(): React.JSX.Element {
   }, [nonce])
 
   async function claim(month: ChoiceMonth, identifiers: string[]): Promise<void> {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setResult(null)
     try {
@@ -89,7 +100,9 @@ export default function Choice(): React.JSX.Element {
       load()
     } catch (e) {
       setResult({ kind: 'error', error: e })
+      load() // some games may have been claimed before the failure
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }
@@ -113,7 +126,7 @@ export default function Choice(): React.JSX.Element {
         </Banner>
       )}
       {result?.kind === 'error' && (
-        <ErrorBanner error={result.error} retry={() => setResult(null)} />
+        <ErrorBanner error={result.error} retry={load} retryLabel="Reload" />
       )}
       {loadError !== null && <ErrorBanner error={loadError} retry={load} />}
       {months === null ? (

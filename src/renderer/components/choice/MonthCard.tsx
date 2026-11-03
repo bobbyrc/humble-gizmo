@@ -25,7 +25,8 @@ export function MonthCard({
   const claimable = month.games.filter((g) => g.claimable)
   const limit = month.usesChoices ? month.choicesRemaining : Infinity
   const atLimit = picked.length >= limit
-  const canClaimAll = !month.usesChoices || month.choicesRemaining >= claimable.length
+  const canClaimAll =
+    claimable.length > 0 && (!month.usesChoices || month.choicesRemaining >= claimable.length)
   const k = picked.length
 
   function toggle(id: string, on: boolean): void {
@@ -98,6 +99,7 @@ export function MonthCard({
         onCancel={() => setConfirming(false)}
         onConfirm={() => {
           setConfirming(false)
+          if (busy) return
           void onClaim(month, picked).then(() => setPicked([]))
         }}
       />
