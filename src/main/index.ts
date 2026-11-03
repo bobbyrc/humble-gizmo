@@ -14,7 +14,9 @@ import { runProbe } from './dev/probe'
 import { createAppWindow } from './windows/appWindow'
 import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
 import { installAppSessionGuard } from './net/allowlist'
-import { getUpdatesAllowed } from './net/updatesFlag'
+import { getUpdatesAllowed, setUpdatesAllowed } from './net/updatesFlag'
+import { autoUpdater } from 'electron-updater'
+import { guardUpdaterSession, initUpdater } from './updater'
 import { createHumbleHttpClient } from './net/transportConfig'
 import { SessionHttpClient } from './net/sessionHttpClient'
 import { HumbleApi } from './humble/humbleApi'
@@ -112,13 +114,14 @@ async function start(): Promise<void> {
         blockerId = null
       }
     },
-    checkForUpdates: async () => 'error' // stub until Task 25
+    checkForUpdates: () => updater.checkNow()
   }
 
   let quitting = false
   app.on('before-quit', () => {
     quitting = true
     scheduler.stop()
+    updater.stop()
   })
   let tray: { destroy(): void } | null = null
 
@@ -180,6 +183,44 @@ async function start(): Promise<void> {
     n.on('close', () => liveNotifications.delete(n))
     n.show()
   }
+  // Update checks reach GitHub, so initUpdater only runs them when autoUpdate is on or the user clicks check.
+  guardUpdaterSession((name, opts) => session.fromPartition(name, opts), getUpdatesAllowed)
+  const updater = initUpdater({
+    settings,
+    updater: autoUpdater,
+    setUpdatesAllowed,
+    isPackaged: app.isPackaged,
+    // Linux packages other than AppImage cannot replace themselves; point to the Releases page instead.
+    externalInstall: process.platform === 'linux' && !process.env.APPIMAGE,
+    showReleasesPrompt: async () => {
+      const { response } = await dialog.showMessageBox({
+        type: 'info',
+        message: 'A new version is available',
+        buttons: ['Get it', 'Later'],
+        defaultId: 0,
+        cancelId: 1
+      })
+      if (response === 0)
+        await shell.openExternal('https://github.com/bobbyrc/humble-gizmo/releases')
+    },
+    askInstall: async (version) => {
+      const { response } = await dialog.showMessageBox({
+        type: 'question',
+        message: `Humble Gizmo ${version} is available. Download and install it now?`,
+        buttons: ['Install', 'Later'],
+        defaultId: 0,
+        cancelId: 1
+      })
+      return response === 0
+    },
+    // Without this the keepInBackground close handler would hide the window instead of letting the app quit.
+    beforeInstall: () => {
+      quitting = true
+    },
+    afterInstallFailed: () => {
+      quitting = false
+    }
+  })
   const scheduler = startScheduler({
     getHours: () => settings.get().scheduleHours,
     check: createBackgroundCheck({
@@ -203,6 +244,7 @@ async function start(): Promise<void> {
       scheduler.reschedule()
       applyTray(s)
       applyLaunchAtLogin(s.launchAtLogin)
+      updater.onSettingsChanged(s)
     }
   })
   registerHandlers(ipcMain, handlers)
