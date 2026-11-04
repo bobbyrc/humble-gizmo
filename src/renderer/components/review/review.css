@@ -69,20 +69,19 @@
   pointer-events: none;
   z-index: 2;
 }
+/* Header checkbox: same 18px box and accent as the row checkboxes, centred in the stub cell. */
+.review-head-check {
+  accent-color: var(--carbon);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
 .review-hint {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   padding: 12px 20px;
   border-bottom: 1px dashed var(--rule-soft);
   background: transparent;
   font-size: 14px;
   color: var(--ink-2);
-}
-.review-untick {
-  white-space: nowrap;
-  margin-left: auto;
 }
 .review-cols,
 .review-row {
@@ -171,6 +170,11 @@
 /* Game column starts on the tear line at 64px; inset its text so the line does not run through it. */
 .review-cols > :nth-child(2),
 .review-row .checkbox label {
+  padding-left: 16px;
+}
+/* From text sits 16px clear of its column divider, in the head and in the rows. Note is right-aligned, so it takes no inset. */
+.review-cols > :nth-child(3),
+.review-row-from {
   padding-left: 16px;
 }
 .review-row .checkbox input:disabled + label {

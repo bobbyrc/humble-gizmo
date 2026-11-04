@@ -190,12 +190,24 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
 
   const tickedIds = items.filter((i) => i.tickable && ticks[i.key.id]).map((i) => i.key.id)
   const n = tickedIds.length
+  const groupItems = byGroup.get(group) ?? []
+  const tickable = groupItems.filter((i) => i.tickable)
+  const tickedCount = tickable.filter((i) => ticks[i.key.id]).length
+  const allTicked = tickable.length > 0 && tickedCount === tickable.length
+  const someTicked = tickedCount > 0 && !allTicked
+  const headRef = useRef<HTMLInputElement>(null)
+  // indeterminate has no HTML attribute, so it is set on the element after each render.
+  useEffect(() => {
+    if (headRef.current) headRef.current.indeterminate = someTicked
+  })
 
-  function untickAll(group: ReviewGroup): void {
+  // Ticks every tickable item in the group, or unticks them all when they are all ticked.
+  function toggleGroup(): void {
+    const next = !allTicked
     setTicks((prev) => {
-      const next = { ...prev }
-      for (const i of byGroup.get(group) ?? []) next[i.key.id] = false
-      return next
+      const out = { ...prev }
+      for (const i of tickable) out[i.key.id] = next
+      return out
     })
   }
 
@@ -279,78 +291,68 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
             tone: g === 'maybe_owned' ? 'warn' : g === 'failed_before' ? 'danger' : undefined
           }))}
         >
-          {(() => {
-            const groupItems = byGroup.get(group) ?? []
-            const anyTicked = groupItems.some((i) => ticks[i.key.id])
-            return (
-              <div
-                className="review-sheet"
-                ref={sheetRef}
-                style={
-                  cols
-                    ? ({
-                        '--col-from': `${cols.from}px`,
-                        '--col-note': `${cols.note}px`
-                      } as React.CSSProperties)
-                    : undefined
-                }
-              >
-                {(HINTS[group] || anyTicked) && (
-                  <div className="review-hint">
-                    <span>{HINTS[group]}</span>
-                    {anyTicked && (
-                      <button
-                        type="button"
-                        className="btn btn-link review-untick"
-                        aria-label={`Untick all ${GROUP_LABELS[group]}`}
-                        onClick={() => untickAll(group)}
-                      >
-                        Untick all
-                      </button>
-                    )}
-                  </div>
-                )}
-                <div className="sheet-cols review-cols">
-                  <span />
-                  <span>Game</span>
-                  <span>
-                    From
-                    <ColumnResizer
-                      label="Resize From column"
-                      value={shown.from}
-                      min={FROM_RANGE.min}
-                      max={FROM_RANGE.max}
-                      onDelta={(dx) => resizeColumn('from', dx)}
-                      onReset={resetColumns}
-                    />
-                  </span>
-                  <span>
-                    Note
-                    <ColumnResizer
-                      label="Resize Note column"
-                      value={shown.note}
-                      min={NOTE_RANGE.min}
-                      max={NOTE_RANGE.max}
-                      onDelta={(dx) => resizeColumn('note', dx)}
-                      onReset={resetColumns}
-                    />
-                  </span>
-                </div>
-                <VirtualRows
-                  items={groupItems}
-                  itemKey={(i) => i.key.id}
-                  viewportHeight={viewportHeight}
-                  renderRow={(i) => (
-                    <ReviewRow
-                      item={i}
-                      ticked={ticks[i.key.id] ?? false}
-                      onToggle={(checked) => setTicks((prev) => ({ ...prev, [i.key.id]: checked }))}
-                    />
-                  )}
+          {
+            <div
+              className="review-sheet"
+              ref={sheetRef}
+              style={
+                cols
+                  ? ({
+                      '--col-from': `${cols.from}px`,
+                      '--col-note': `${cols.note}px`
+                    } as React.CSSProperties)
+                  : undefined
+              }
+            >
+              {HINTS[group] && <div className="review-hint">{HINTS[group]}</div>}
+              <div className="sheet-cols review-cols">
+                <input
+                  ref={headRef}
+                  type="checkbox"
+                  className="review-head-check"
+                  aria-label={`${allTicked ? 'Untick' : 'Tick'} all ${GROUP_LABELS[group]}`}
+                  checked={allTicked}
+                  disabled={tickable.length === 0}
+                  onChange={toggleGroup}
                 />
+                <span>Game</span>
+                <span>
+                  From
+                  <ColumnResizer
+                    label="Resize From column"
+                    value={shown.from}
+                    min={FROM_RANGE.min}
+                    max={FROM_RANGE.max}
+                    onDelta={(dx) => resizeColumn('from', dx)}
+                    onReset={resetColumns}
+                  />
+                </span>
+                <span>
+                  Note
+                  <ColumnResizer
+                    label="Resize Note column"
+                    value={shown.note}
+                    min={NOTE_RANGE.min}
+                    max={NOTE_RANGE.max}
+                    onDelta={(dx) => resizeColumn('note', dx)}
+                    onReset={resetColumns}
+                  />
+                </span>
               </div>
-            )
-          })()}
+              <VirtualRows
+                items={groupItems}
+                itemKey={(i) => i.key.id}
+                viewportHeight={viewportHeight}
+                renderRow={(i) => (
+                  <ReviewRow
+                    item={i}
+                    ticked={ticks[i.key.id] ?? false}
+                    onToggle={(checked) => setTicks((prev) => ({ ...prev, [i.key.id]: checked }))}
+                  />
+                )}
+              />
+            </div>
+          }
         </Tabs>
       )}
     </div>

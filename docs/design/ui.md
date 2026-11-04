@@ -254,11 +254,12 @@ Shared by Review, Run, Choice, History and Settings:
   keeps every tick.
 - Panel: when the group has a hint (`maybe_owned` "check these", `owned` "skipped",
   `failed_before` "tick to retry"), a hint strip (14px `--ink-2`, padding 12px 20px, dashed
-  bottom rule) with the "Untick all" link button on its right (shown when any item in the group is
-  ticked; keep its aria-label). Without a hint the strip still renders when "Untick all" is
-  shown.
-- Column heads (`.sheet-cols`) on a grid `44px minmax(0,1fr) 260px 240px`: (blank), Game, From,
-  Note.
+  bottom rule) holding only the hint text. No hint, no strip.
+- Column heads (`.sheet-cols`): header checkbox, Game, From (16px left padding, clear of its
+  divider), Note. The header checkbox sits in the stub above the row checkboxes and acts on the
+  selected group's tickable items: checked when all are ticked, indeterminate when some are,
+  unchecked when none; clicking ticks all, or unticks all when all were ticked; disabled when
+  the group has none tickable. Its aria-label is "Tick all <group>" / "Untick all <group>".
 - Rows (`.sheet-row`, same grid, height `--row-h`): checkbox; game name (15px 500; untickable rows
   `--ink-2`); From in `.data`: `${bundle} · ${year}` from `item.key.bundle` and the first four
   digits of `item.key.purchased`; either part may be missing; "—" when both are; ellipsis on

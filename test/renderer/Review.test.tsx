@@ -101,7 +101,7 @@ describe('Review', () => {
     expect(screen.getByText('duplicate')).toBeTruthy()
   })
 
-  it('shows only the selected group and shows hint, matches pill and untick all', async () => {
+  it('shows only the selected group, its hint and matches pill', async () => {
     mockGizmo({
       buildReview: vi.fn(async () => [
         item(1),
@@ -118,8 +118,26 @@ describe('Review', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^Failed before/ }))
     expect(screen.getByText("won't work")).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: /^Will redeem/ }))
-    fireEvent.click(screen.getByText('Untick all'))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Untick all Will redeem' }))
     expect(screen.getByRole('button', { name: 'Redeem 0' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('will_redeem has no hint strip but shows the header checkbox', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1), item(2)]) })
+    renderReview()
+    await screen.findByText('Game 1')
+    expect(document.querySelector('.review-hint')).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Untick all Will redeem' })).toBeTruthy()
+  })
+
+  it('maybe_owned shows its hint text in the hint strip', async () => {
+    mockGizmo({
+      buildReview: vi.fn(async () => [item(1), item(2, {}, 'maybe_owned')])
+    })
+    renderReview()
+    await screen.findByText('Game 1')
+    fireEvent.click(screen.getByRole('tab', { name: /^Might already own/ }))
+    expect(document.querySelector('.review-hint')?.textContent).toBe('check these')
   })
 
   it('Redeem starts the run with ticked ids, remembers names and goes to run', async () => {
@@ -211,24 +229,45 @@ describe('Review', () => {
     expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
   })
 
-  it('untick all only affects its own group', async () => {
+  it('header checkbox ticks the tickable items of its group only', async () => {
     mockGizmo({
       buildReview: vi.fn(async () => [
-        item(1),
-        item(2, {}, 'owned'),
+        item(1, { ticked: false }),
+        item(2, { ticked: false, tickable: false }),
         item(3, { ticked: true }, 'owned')
       ])
     })
     renderReview()
-    await screen.findByRole('button', { name: 'Redeem 2' })
+    // Redeem counts every ticked item, so the ticked owned item makes the start 1.
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tick all Will redeem' }))
+    expect(screen.getByRole('button', { name: 'Redeem 2' })).toBeTruthy()
+    expect((screen.getByLabelText('Game 2') as HTMLInputElement).checked).toBe(false)
     fireEvent.click(screen.getByRole('tab', { name: /^You already own/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Untick all You already own' }))
-    expect(screen.getByRole('button', { name: 'Redeem 1' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: /^Will redeem/ }))
-    expect((screen.getByLabelText('Game 1') as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByLabelText('Game 3') as HTMLInputElement).checked).toBe(true)
   })
 
-  it('hides untick all for a group with nothing ticked', async () => {
+  it('header checkbox unticks the whole group when all its tickable items are ticked', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1), item(2)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 2' })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Untick all Will redeem' }))
+    expect(screen.getByRole('button', { name: 'Redeem 0' })).toBeTruthy()
+    const head = screen.getByRole('checkbox', { name: 'Tick all Will redeem' }) as HTMLInputElement
+    expect(head.checked).toBe(false)
+    expect(head.indeterminate).toBe(false)
+  })
+
+  it('header checkbox is indeterminate when some items are ticked', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1), item(2, { ticked: false })]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    const head = screen.getByRole('checkbox', { name: 'Tick all Will redeem' }) as HTMLInputElement
+    expect(head.indeterminate).toBe(true)
+    expect(head.checked).toBe(false)
+  })
+
+  it('header checkbox is disabled for a group with no tickable items', async () => {
     mockGizmo({
       buildReview: vi.fn(async () => [
         item(1),
@@ -237,17 +276,11 @@ describe('Review', () => {
     })
     renderReview()
     await screen.findByRole('button', { name: 'Redeem 1' })
-    expect(
-      screen.queryByRole('button', { name: 'Untick all Already done in an earlier run' })
-    ).toBeNull()
-  })
-
-  it('hides untick all for a group once its last tick is cleared', async () => {
-    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
-    renderReview()
-    await screen.findByRole('button', { name: 'Redeem 1' })
-    fireEvent.click(screen.getByRole('button', { name: 'Untick all Will redeem' }))
-    expect(screen.queryByRole('button', { name: 'Untick all Will redeem' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /^Already done/ }))
+    const head = screen.getByRole('checkbox', {
+      name: 'Tick all Already done in an earlier run'
+    }) as HTMLInputElement
+    expect(head.disabled).toBe(true)
   })
 
   it('lists each non-empty group as a tab with its count', async () => {
