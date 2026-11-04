@@ -4,7 +4,7 @@
    bottom (.content pads 40px; the extra 12px of height reclaims that much of it). */
 .review-screen {
   padding-top: 0;
-  height: calc(100% + 12px);
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
