@@ -6,7 +6,7 @@ Spec: `docs/superpowers/specs/2026-11-02-humble-gizmo-parity-design.md`
 - [x] Phase 0: scaffold, allowlist, sign-in windows, probe (Tasks 1–4)
 - [x] Task 5 checkpoint: probe run 2026-11-03. Session transport works (no Cloudflare); keyless web-token owned names work (1,030 games); community-page names do not; batch `/api/v1/orders` works (3/3). Owner chose to keep only what works: window transport, community-page and API-key sources, and the Settings API-key field removed.
 - [x] Phase 1: pure core logic (Tasks 6–12)
-- [x] Phase 2: Humble/Steam clients, runner, fixture capture tool, IPC shell (Tasks 13–17). The owner still needs to run `npm run capture` and confirm the parsers.
+- [x] Phase 2: Humble/Steam clients, runner, fixture capture tool, IPC shell (Tasks 13–17). Capture run 2026-11-03: trimmed, sanitized fixtures committed (6fcd24e); the 3 captured tests pass. No Choice month fixture (the account's Choice pages redirect: no active subscription).
 - [ ] Task 18 checkpoint: UI design drafted (`docs/design/ui.md`) and the built screens checked against it; owner approval pending
 - [x] Phase 3: screens 19–23. Task 20 (sign-in) was re-dispatched with the owner's go-ahead on 2026-11-03 (a6ce9ae, review fix round 9fba244)
 - [x] Phase 4: scheduler, updates, packaging (Tasks 24–26)
