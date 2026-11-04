@@ -10,6 +10,8 @@ export type HumbleKey = {
   revealedKey: string | null; // tpk.redeemed_key_val
   isGift: boolean;
   isExpired: boolean;
+  bundle?: string;          // the order's product.human_name, trimmed
+  purchased?: string;       // the order's created timestamp, as Humble sends it
 };
 export type Ownership = 'owned' | 'maybe' | 'not_owned';
 export type OwnedData = { ids: Set<number>; names: Map<number, string> };

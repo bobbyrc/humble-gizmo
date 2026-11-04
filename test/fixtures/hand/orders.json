@@ -43,6 +43,8 @@
   },
   {
     "gamekey": "gk2",
+    "product": { "human_name": "  Humble Indie Bundle 19 " },
+    "created": "2018-03-06T18:00:23.123",
     "subproducts": [
       {
         "machine_name": "game_four_bundle",

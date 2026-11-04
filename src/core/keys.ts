@@ -7,7 +7,9 @@ type JsonObject = Record<string, unknown>
 const isPlainObject = (v: unknown): v is JsonObject =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 
-function toKey(o: JsonObject): HumbleKey | null {
+type OrderContext = { bundle?: string; purchased?: string }
+
+function toKey(o: JsonObject, ctx: OrderContext): HumbleKey | null {
   const { machine_name, gamekey, keyindex, key_type_human_name } = o
   if (
     typeof machine_name !== 'string' ||
@@ -30,26 +32,42 @@ function toKey(o: JsonObject): HumbleKey | null {
     steamAppId: typeof appId === 'number' && appId !== 0 ? appId : null,
     revealedKey: typeof revealed === 'string' && revealed !== '' ? revealed : null,
     isGift: o.is_gift === true,
-    isExpired: o.is_expired === true
+    isExpired: o.is_expired === true,
+    ...(ctx.bundle !== undefined ? { bundle: ctx.bundle } : {}),
+    ...(ctx.purchased !== undefined ? { purchased: ctx.purchased } : {})
   }
+}
+
+// Bundle name and purchase date come from the top-level order, not the key itself.
+function orderContext(order: unknown): OrderContext {
+  if (!isPlainObject(order)) return {}
+  const ctx: OrderContext = {}
+  const product = order.product
+  if (isPlainObject(product) && typeof product.human_name === 'string') {
+    const bundle = product.human_name.trim()
+    if (bundle !== '') ctx.bundle = bundle
+  }
+  const created = order.created
+  if (typeof created === 'string' && created !== '') ctx.purchased = created
+  return ctx
 }
 
 // Walks every array and object at any depth. An object that qualifies as a key
 // is recorded and still walked into. The first occurrence of an id wins.
-function walk(node: unknown, found: Map<string, HumbleKey>): void {
+function walk(node: unknown, found: Map<string, HumbleKey>, ctx: OrderContext): void {
   if (Array.isArray(node)) {
-    for (const child of node) walk(child, found)
+    for (const child of node) walk(child, found, ctx)
     return
   }
   if (!isPlainObject(node)) return
-  const key = toKey(node)
+  const key = toKey(node, ctx)
   if (key && !found.has(key.id)) found.set(key.id, key)
-  for (const value of Object.values(node)) walk(value, found)
+  for (const value of Object.values(node)) walk(value, found, ctx)
 }
 
 export function extractKeys(orders: unknown[]): HumbleKey[] {
   const found = new Map<string, HumbleKey>()
-  walk(orders, found)
+  for (const order of orders) walk(order, found, orderContext(order))
   return Array.from(found.values())
 }
 
