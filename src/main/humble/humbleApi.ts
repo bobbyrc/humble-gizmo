@@ -81,6 +81,33 @@ function parseJson<T>(body: string, schema: z.ZodType<T>, endpoint: string): T {
   return parsed.data
 }
 
+const BATCH_CONCURRENCY = 4
+
+/**
+ * Runs task(0..count-1) with at most `limit` in flight. The first error stops new tasks and is
+ * rethrown once the tasks already running have settled.
+ */
+async function runPool(
+  count: number,
+  limit: number,
+  task: (i: number) => Promise<void>
+): Promise<void> {
+  let next = 0
+  // Assigned inside the workers, so TypeScript cannot follow it; the cast keeps it from narrowing to never.
+  let failure = null as { error: unknown } | null
+  const worker = async (): Promise<void> => {
+    while (failure === null && next < count) {
+      try {
+        await task(next++)
+      } catch (error) {
+        failure ??= { error }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, count) }, worker))
+  if (failure !== null) throw failure.error
+}
+
 export class HumbleApi {
   private readonly sleep: (ms: number) => Promise<void>
 
@@ -106,20 +133,86 @@ export class HumbleApi {
   }
 
   /**
-   * Fetches order details with bounded parallelism. `retries` is the number of attempts per
-   * order; between attempts it waits 2s times the attempt number. Orders that still fail are
-   * returned in `failed`. An expired session aborts everything.
+   * One request for many orders. Returns the body object, 'not-found' on HTTP 404, or null when
+   * the chunk failed for any other reason. Session and blocked-host errors still throw.
+   */
+  private async fetchBatch(
+    gamekeys: string[]
+  ): Promise<Record<string, unknown> | 'not-found' | null> {
+    const params = new URLSearchParams({ all_tpkds: 'true' })
+    for (const k of gamekeys) params.append('gamekeys', k)
+    let res: Res
+    try {
+      res = await this.http.get(`${ORIGIN}/api/v1/orders?${params}`)
+    } catch (e) {
+      if (isFatal(e)) throw e
+      return null
+    }
+    checkSession(res)
+    if (res.status === 404) return 'not-found'
+    if (res.status < 200 || res.status >= 300) return null
+    let body: unknown
+    try {
+      body = JSON.parse(res.body)
+    } catch {
+      return null
+    }
+    return typeof body === 'object' && body !== null && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : null
+  }
+
+  /**
+   * Fetches order details. Phase 1 asks for batches of `batchSize` orders (up to 4 batch
+   * requests in flight, no retries). Phase 2 fetches, one at a time, every order phase 1 did not
+   * return cleanly, plus all remaining orders if the batch endpoint is missing (a 404 on the
+   * first batch to finish). Phase 2 uses bounded parallelism (`concurrency`); `retries` is the
+   * number of attempts per order, and between attempts it waits 2s times the attempt number.
+   * Orders that still fail are returned in `failed`. An expired session aborts everything.
+   * `onProgress(done, total)` is called with 0 first, then as batches and single orders settle.
    */
   async getOrders(
     gamekeys: string[],
-    opts: { concurrency?: number; retries?: number } = {}
+    opts: {
+      concurrency?: number
+      retries?: number
+      batchSize?: number
+      onProgress?: (done: number, total: number) => void
+    } = {}
   ): Promise<{ orders: unknown[]; failed: string[] }> {
     const concurrency = Math.max(1, opts.concurrency ?? 15)
     const attempts = Math.max(1, opts.retries ?? 3)
-    const results: (unknown | undefined)[] = new Array(gamekeys.length)
-    const ok: boolean[] = new Array(gamekeys.length).fill(false)
-    let next = 0
-    let fatal: unknown = null
+    const batchSize = Math.max(1, opts.batchSize ?? 40)
+    const total = gamekeys.length
+    const results: unknown[] = new Array(total)
+    const ok: boolean[] = new Array(total).fill(false)
+    let done = 0
+    opts.onProgress?.(0, total)
+
+    const chunks: number[][] = []
+    for (let start = 0; start < total; start += batchSize) {
+      chunks.push(Array.from({ length: Math.min(batchSize, total - start) }, (_, j) => start + j))
+    }
+    let batchSupported = true
+    let chunkSettled = false
+    await runPool(chunks.length, BATCH_CONCURRENCY, async (c) => {
+      if (!batchSupported) return
+      const indices = chunks[c]
+      const body = await this.fetchBatch(indices.map((i) => gamekeys[i]))
+      const first = !chunkSettled
+      chunkSettled = true
+      if (body === 'not-found' && first) batchSupported = false
+      if (body !== null && body !== 'not-found') {
+        for (const i of indices) {
+          const parsed = orderSchema.safeParse(body[gamekeys[i]])
+          if (!parsed.success) continue
+          results[i] = parsed.data
+          ok[i] = true
+          done++
+        }
+      }
+      opts.onProgress?.(done, total)
+    })
 
     const fetchWithRetry = async (gamekey: string): Promise<unknown> => {
       for (let attempt = 1; ; attempt++) {
@@ -132,20 +225,18 @@ export class HumbleApi {
       }
     }
 
-    const worker = async (): Promise<void> => {
-      while (fatal === null && next < gamekeys.length) {
-        const i = next++
-        try {
-          results[i] = await fetchWithRetry(gamekeys[i])
-          ok[i] = true
-        } catch (e) {
-          if (isFatal(e)) fatal = e
-        }
+    const missing = gamekeys.flatMap((_, i) => (ok[i] ? [] : [i]))
+    await runPool(missing.length, concurrency, async (m) => {
+      const i = missing[m]
+      try {
+        results[i] = await fetchWithRetry(gamekeys[i])
+        ok[i] = true
+      } catch (e) {
+        if (isFatal(e)) throw e
       }
-    }
-
-    await Promise.all(Array.from({ length: Math.min(concurrency, gamekeys.length) }, worker))
-    if (fatal !== null) throw fatal
+      done++
+      opts.onProgress?.(done, total)
+    })
 
     const orders: unknown[] = []
     const failed: string[] = []

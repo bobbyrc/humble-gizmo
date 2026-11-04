@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { GizmoApi } from '../shared/ipc'
+import type { GizmoApi, LibraryProgress } from '../shared/ipc'
 import type { RunEvent } from '../shared/types'
 import { toBridgeError } from './ipcError'
 
@@ -28,6 +28,13 @@ const api: GizmoApi = {
     ipcRenderer.on('gizmo:run-event', listener)
     return () => {
       ipcRenderer.removeListener('gizmo:run-event', listener)
+    }
+  },
+  onLibraryProgress(cb) {
+    const listener = (_e: unknown, progress: LibraryProgress): void => cb(progress)
+    ipcRenderer.on('gizmo:library-progress', listener)
+    return () => {
+      ipcRenderer.removeListener('gizmo:library-progress', listener)
     }
   },
   listChoiceMonths: call('listChoiceMonths'),

@@ -1,4 +1,4 @@
-import type { GizmoApi } from '../../src/shared/ipc'
+import type { GizmoApi, LibraryProgress } from '../../src/shared/ipc'
 import {
   DEFAULT_SETTINGS,
   type ChoiceMonth,
@@ -213,6 +213,8 @@ export function fakeGizmo(scenario: string): GizmoApi {
   let settings: Settings = { ...DEFAULT_SETTINGS, consentShown: scenario !== 'welcome' }
   const signed: Record<Service, boolean> = { humble: true, steam: scenario !== 'signin' }
   const listeners = new Set<(e: RunEvent) => void>()
+  const progressListeners = new Set<(p: LibraryProgress) => void>()
+  let libraryLoaded = false
   const emit = (e: RunEvent): void => listeners.forEach((l) => l(e))
   const failedOrders = scenario === 'review-warn' ? 3 : 0
   const cycle: [Exclude<Outcome, 'pending'>, number | null][] = [
@@ -237,7 +239,16 @@ export function fakeGizmo(scenario: string): GizmoApi {
       signed[service] = false
     },
     status: async () => ({ ...signed }),
-    loadLibrary: async () => ({ keys: 640, steamKeys: 519, failedOrders }),
+    loadLibrary: async (opts) => {
+      if (libraryLoaded && !opts?.refresh) return { keys: 640, steamKeys: 519, failedOrders }
+      // Set only once the load finishes: StrictMode runs the Review effect twice, and the second call must not skip progress.
+      for (let done = 40; done <= 480; done += 40) {
+        await sleep(150)
+        progressListeners.forEach((l) => l({ done, total: 480 }))
+      }
+      libraryLoaded = true
+      return { keys: 640, steamKeys: 519, failedOrders }
+    },
     buildReview: async () => {
       if (scenario === 'empty') return []
       if (scenario === 'review-error') {
@@ -284,6 +295,12 @@ export function fakeGizmo(scenario: string): GizmoApi {
       listeners.add(cb)
       return () => {
         listeners.delete(cb)
+      }
+    },
+    onLibraryProgress: (cb) => {
+      progressListeners.add(cb)
+      return () => {
+        progressListeners.delete(cb)
       }
     },
     listChoiceMonths: async () => {

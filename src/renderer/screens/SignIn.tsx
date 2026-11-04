@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { gizmo } from '../gizmo'
+import { loadingLabel, useLibraryProgress } from '../libraryProgress'
 import { useNav } from '../nav'
 import { setFreshLibrary } from '../runState'
 import type { LibrarySummary } from '../../shared/ipc'
@@ -20,6 +21,7 @@ const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' 
 
 export default function SignIn(): React.JSX.Element {
   const { go } = useNav()
+  const progress = useLibraryProgress()
   const [status, setStatus] = useState<Status | null>(null)
   const [statusError, setStatusError] = useState<unknown>(null)
   const [pending, setPending] = useState<Record<Service, boolean>>({ humble: false, steam: false })
@@ -147,7 +149,7 @@ export default function SignIn(): React.JSX.Element {
         ))}
       </div>
       <div className="signin-result">
-        {phase === 'loading' && <Spinner label="Loading your library…" />}
+        {phase === 'loading' && <Spinner label={loadingLabel(progress)} />}
         {typeof phase === 'object' && 'done' in phase && (
           <>
             <div>Found {plural(phase.done.steamKeys, 'Steam key')}</div>

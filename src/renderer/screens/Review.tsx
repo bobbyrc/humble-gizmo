@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { gizmo } from '../gizmo'
+import { loadingLabel, useLibraryProgress } from '../libraryProgress'
 import { useNav } from '../nav'
 import { GROUP_LABELS } from '../../shared/copy'
 import type { ReviewGroup, ReviewItem } from '../../shared/types'
@@ -87,6 +88,7 @@ type Load = { status: 'loading' } | { status: 'error'; error: unknown } | { stat
 export default function Review({ viewportHeight }: { viewportHeight?: number }): React.JSX.Element {
   const { go } = useNav()
   const [load, setLoad] = useState<Load>({ status: 'loading' })
+  const progress = useLibraryProgress()
   const [items, setItems] = useState<ReviewItem[]>([])
   const [ticks, setTicks] = useState<Record<string, boolean>>({})
   const [runError, setRunError] = useState<unknown>(null)
@@ -239,7 +241,7 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
     return (
       <div className="screen-pad">
         <div className="sheet review-sheet-loading">
-          <Spinner label="Loading your library…" />
+          <Spinner label={loadingLabel(progress)} />
         </div>
       </div>
     )

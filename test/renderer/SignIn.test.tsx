@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
-import type { LibrarySummary } from '../../src/shared/ipc'
+import type { LibraryProgress, LibrarySummary } from '../../src/shared/ipc'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { serviceChanged } from '../../src/shared/copy'
 import { bridgeError, mockGizmo } from './mockGizmo'
@@ -87,6 +87,21 @@ describe('SignIn', () => {
       timeout: 3000
     })
     expect(takeFreshLibrary()).toEqual(summary)
+  })
+
+  it('shows library progress while the library loads', async () => {
+    let emit: (p: LibraryProgress) => void = () => undefined
+    mockGizmo({
+      loadLibrary: vi.fn(() => new Promise<LibrarySummary>(() => undefined)),
+      onLibraryProgress: vi.fn((cb: (p: LibraryProgress) => void) => {
+        emit = cb
+        return () => undefined
+      })
+    })
+    renderSignIn()
+    expect(await screen.findByText('Loading your library…')).toBeTruthy()
+    await act(async () => emit({ done: 120, total: 480 }))
+    expect(screen.getByText('Loading your library… 120 of 480 purchases')).toBeTruthy()
   })
 
   it('shows no warning when no orders failed', async () => {

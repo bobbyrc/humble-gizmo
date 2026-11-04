@@ -65,7 +65,7 @@ export type Handlers = GizmoApi & {
 
 const ERR_MARKER = 'GIZMO_ERR:'
 
-/** Every GizmoApi method that crosses IPC (onRunEvent is preload-only). */
+/** Every GizmoApi method that crosses IPC (onRunEvent and onLibraryProgress are preload-only). */
 const IPC_METHODS = [
   'getSettings',
   'setSettings',
@@ -163,7 +163,9 @@ export function createHandlers(ctx: AppContext): Handlers {
 
   const loadLibrary = async (): Promise<Library> => {
     const gamekeys = await humble.listOrderGamekeys()
-    const { orders, failed } = await humble.getOrders(gamekeys)
+    const { orders, failed } = await humble.getOrders(gamekeys, {
+      onProgress: (done, total) => platform.send('gizmo:library-progress', { done, total })
+    })
     const lib: Library = { orders, keys: extractKeys(orders), failedOrders: failed.length }
     library = lib
     review = null
@@ -262,6 +264,9 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     onRunEvent: () => {
       throw new Error('onRunEvent is implemented in the preload')
+    },
+    onLibraryProgress: () => {
+      throw new Error('onLibraryProgress is implemented in the preload')
     },
 
     listChoiceMonths: async () => {

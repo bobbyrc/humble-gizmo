@@ -4,6 +4,7 @@ import type {
 } from './types';
 export type ChoiceListing = { months: ChoiceMonth[]; locked: number }; // locked: picks Humble would not open
 export type LibrarySummary = { keys: number; steamKeys: number; failedOrders: number };
+export type LibraryProgress = { done: number; total: number };
 export type GizmoApi = {
   getSettings(): Promise<Settings>;
   setSettings(patch: Partial<Settings>): Promise<Settings>;
@@ -15,6 +16,7 @@ export type GizmoApi = {
   startRun(keyIds: string[]): Promise<void>;
   stopRun(): Promise<void>;
   onRunEvent(cb: (e: RunEvent) => void): () => void; // returns unsubscribe
+  onLibraryProgress(cb: (p: LibraryProgress) => void): () => void; // returns unsubscribe
   listChoiceMonths(): Promise<ChoiceListing>;
   claimChoices(monthGamekey: string, identifiers: string[]): Promise<{ failed: string[] }>;
   openExternal(url: string): Promise<void>;        // only humblebundle.com / steampowered.com / github.com release URLs

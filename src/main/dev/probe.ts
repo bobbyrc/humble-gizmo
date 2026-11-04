@@ -51,13 +51,16 @@ async function ensureSignedIn(service: 'humble' | 'steam'): Promise<boolean> {
 }
 
 async function probeHumble(report: Report): Promise<void> {
-  let gamekey: string | null = null
+  let gamekeys: string[] = []
   await step('H1', report, async () => {
     const res = await humbleSession().fetch(`${HUMBLE}/api/v1/user/order`)
     const text = await res.text()
     const json = parseJson(text)
-    const first = Array.isArray(json) && isRecord(json[0]) ? json[0] : null
-    if (first && typeof first.gamekey === 'string') gamekey = first.gamekey
+    if (Array.isArray(json)) {
+      gamekeys = json
+        .flatMap((o) => (isRecord(o) && typeof o.gamekey === 'string' ? [o.gamekey] : []))
+        .slice(0, 3)
+    }
     return {
       status: res.status,
       json: json !== undefined,
@@ -67,12 +70,29 @@ async function probeHumble(report: Report): Promise<void> {
   })
 
   await step('H1b', report, async () => {
+    const [gamekey] = gamekeys
     if (!gamekey) return { skipped: true }
     const res = await humbleSession().fetch(
       `${HUMBLE}/api/v1/order/${encodeURIComponent(gamekey)}?all_tpkds=true`
     )
     const json = parseJson(await res.text())
     return { status: res.status, topLevelKeys: isRecord(json) ? Object.keys(json) : null }
+  })
+
+  await step('H1c', report, async () => {
+    if (gamekeys.length < 2) return { skipped: true }
+    const query = gamekeys.map((k) => `gamekeys=${encodeURIComponent(k)}`).join('&')
+    const res = await humbleSession().fetch(`${HUMBLE}/api/v1/orders?all_tpkds=true&${query}`)
+    const json = parseJson(await res.text())
+    const keysInBody = new Set(isRecord(json) ? Object.keys(json) : [])
+    const returned = gamekeys.filter((k) => keysInBody.has(k)).length
+    return {
+      status: res.status,
+      isObject: isRecord(json),
+      requested: gamekeys.length,
+      returned,
+      allPresent: returned === gamekeys.length
+    }
   })
 
   await step('H2', report, async () => {

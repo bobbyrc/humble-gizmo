@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { LibraryProgress } from '../../src/shared/ipc'
 import type { ReviewItem, ReviewGroup, RunEvent } from '../../src/shared/types'
 import { UNREVEALED_LABEL } from '../../src/shared/copy'
 import { bridgeError, mockGizmo } from './mockGizmo'
@@ -74,6 +75,20 @@ describe('Review', () => {
     mockGizmo({ buildReview: vi.fn(() => new Promise<ReviewItem[]>(() => undefined)) })
     renderReview()
     expect(screen.getByText('Loading your library…')).toBeTruthy()
+  })
+
+  it('shows library progress while loading', async () => {
+    let emit: (p: LibraryProgress) => void = () => undefined
+    mockGizmo({
+      buildReview: vi.fn(() => new Promise<ReviewItem[]>(() => undefined)),
+      onLibraryProgress: vi.fn((cb: (p: LibraryProgress) => void) => {
+        emit = cb
+        return () => undefined
+      })
+    })
+    renderReview()
+    await act(async () => emit({ done: 120, total: 480 }))
+    expect(screen.getByText('Loading your library… 120 of 480 purchases')).toBeTruthy()
   })
 
   it('unticking changes the button to Redeem N-1', async () => {

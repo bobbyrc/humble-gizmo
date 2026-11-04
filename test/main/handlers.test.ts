@@ -93,7 +93,7 @@ afterEach(async () => {
 const make = (): ReturnType<typeof createHandlers> =>
   createHandlers({ humble, steam, keys, settings, storageEncrypted: true, platform, clock })
 
-const EXPECTED_METHODS: Exclude<keyof GizmoApi, 'onRunEvent'>[] = [
+const EXPECTED_METHODS: Exclude<keyof GizmoApi, 'onRunEvent' | 'onLibraryProgress'>[] = [
   'getSettings',
   'setSettings',
   'signIn',
@@ -114,7 +114,7 @@ const EXPECTED_METHODS: Exclude<keyof GizmoApi, 'onRunEvent'>[] = [
 ]
 
 describe('registerHandlers', () => {
-  it('registers every GizmoApi method except onRunEvent', () => {
+  it('registers every GizmoApi method except the preload-only event subscriptions', () => {
     const channels: string[] = []
     registerHandlers({ handle: (c: string) => void channels.push(c) } as never, make())
     expect(channels.sort()).toEqual(EXPECTED_METHODS.map((m) => `gizmo:${m}`).sort())
@@ -149,6 +149,21 @@ describe('registerHandlers', () => {
 describe('library, status, settings', () => {
   it('loadLibrary summarises keys', async () => {
     expect(await make().loadLibrary()).toEqual({ keys: 2, steamKeys: 2, failedOrders: 0 })
+  })
+
+  it('loadLibrary forwards order-fetch progress to the renderer', async () => {
+    const send = vi.fn()
+    platform.send = send
+    humble.getOrders.mockImplementation(
+      async (_gamekeys: string[], opts: { onProgress: (d: number, t: number) => void }) => {
+        opts.onProgress(0, 2)
+        opts.onProgress(2, 2)
+        return { orders: [order('g1', tpk('g1', 1, 'Alpha', GOOD_KEY))], failed: [] }
+      }
+    )
+    await make().loadLibrary()
+    expect(send).toHaveBeenCalledWith('gizmo:library-progress', { done: 0, total: 2 })
+    expect(send).toHaveBeenLastCalledWith('gizmo:library-progress', { done: 2, total: 2 })
   })
 
   it('status swallows check failures', async () => {
