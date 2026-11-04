@@ -367,12 +367,21 @@ describe('Review refresh and reattach', () => {
     expect(screen.queryByText(/Couldn't load/)).toBeNull()
   })
 
-  it('Refresh re-runs loadLibrary and buildReview', async () => {
+  it('mount loads the library without forcing a refresh', async () => {
+    const api = mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(api.loadLibrary).toHaveBeenCalledTimes(1)
+    expect(api.loadLibrary).toHaveBeenCalledWith()
+  })
+
+  it('Refresh re-runs loadLibrary with refresh and buildReview', async () => {
     const api = mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
     renderReview()
     await screen.findByRole('button', { name: 'Redeem 1' })
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     await waitFor(() => expect(api.loadLibrary).toHaveBeenCalledTimes(2))
+    expect(api.loadLibrary).toHaveBeenLastCalledWith({ refresh: true })
     await screen.findByRole('button', { name: 'Redeem 1' })
     expect(api.buildReview).toHaveBeenCalledTimes(2)
   })

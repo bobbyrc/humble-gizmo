@@ -10,7 +10,7 @@ export type GizmoApi = {
   signIn(service: Service): Promise<boolean>;      // opens sign-in window; resolves on success/close
   signOut(service: Service): Promise<void>;
   status(): Promise<Record<Service, boolean>>;     // signed in?
-  loadLibrary(): Promise<LibrarySummary>;
+  loadLibrary(opts?: { refresh?: boolean }): Promise<LibrarySummary>;
   buildReview(): Promise<ReviewItem[]>;
   startRun(keyIds: string[]): Promise<void>;
   stopRun(): Promise<void>;

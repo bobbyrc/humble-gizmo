@@ -60,7 +60,8 @@ export default function SignIn(): React.JSX.Element {
     if (inFlight.current) return
     inFlight.current = true
     setPhase('loading')
-    gizmo.loadLibrary().then(
+    // Sign-in re-checks the session, so it must not be answered from the cache.
+    gizmo.loadLibrary({ refresh: true }).then(
       (summary) => {
         inFlight.current = false
         if (mounted.current) setPhase({ done: summary })

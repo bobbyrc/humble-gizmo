@@ -390,6 +390,127 @@ describe('choices', () => {
   })
 })
 
+describe('choice month concurrency', () => {
+  const choiceOrder = (gamekey: string): Record<string, unknown> => ({
+    gamekey,
+    created: '2026-08-01T10:00:00.000000',
+    choices_remaining: 1,
+    product: { human_name: 'Choice', category: 'subscriptioncontent', choice_url: 'x' },
+    tpkd_dict: { all_tpks: [] }
+  })
+  const monthFor = (gamekey: string): ChoiceMonth => ({
+    gamekey,
+    name: gamekey,
+    choiceUrl: 'x',
+    created: '',
+    usesChoices: true,
+    choicesRemaining: 1,
+    parentIdentifier: 'p',
+    games: []
+  })
+  const deferred = <T>(): { promise: Promise<T>; resolve: (v: T) => void } => {
+    let resolve!: (v: T) => void
+    const promise = new Promise<T>((r) => (resolve = r))
+    return { promise, resolve }
+  }
+
+  it('returns months in order with at most 4 month fetches in flight', async () => {
+    const gamekeys = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
+    humble.getOrders.mockResolvedValue({ orders: gamekeys.map(choiceOrder), failed: [] })
+    const pending = new Map(gamekeys.map((g) => [g, deferred<ChoiceMonth>()]))
+    let inFlight = 0
+    let peak = 0
+    humble.getChoiceMonth.mockImplementation(async (o: { gamekey: string }) => {
+      inFlight++
+      peak = Math.max(peak, inFlight)
+      try {
+        return await pending.get(o.gamekey)!.promise
+      } finally {
+        inFlight--
+      }
+    })
+    const h = make()
+    await h.loadLibrary()
+    const listing = h.listChoiceMonths()
+    // Resolve in reverse order so the result order can only come from the input order.
+    await vi.waitFor(() => expect(humble.getChoiceMonth).toHaveBeenCalledTimes(4))
+    expect(peak).toBe(4)
+    for (const g of [...gamekeys].reverse()) {
+      pending.get(g)!.resolve(monthFor(g))
+      await new Promise((r) => setImmediate(r))
+    }
+    expect(await listing).toEqual({ months: gamekeys.map(monthFor), locked: 0 })
+    expect(peak).toBe(4)
+  })
+
+  it('checks the session once when concurrent months redirect, and counts each as locked', async () => {
+    humble.getOrders.mockResolvedValue({
+      orders: [
+        choiceOrder('g1'),
+        choiceOrder('g2'),
+        choiceOrder('g3'),
+        choiceOrder('g4'),
+        choiceOrder('g5')
+      ],
+      failed: []
+    })
+    humble.getChoiceMonth.mockRejectedValue(new ChoicePageRedirectError())
+    const h = make()
+    await h.loadLibrary()
+    humble.listOrderGamekeys.mockClear()
+    expect(await h.listChoiceMonths()).toEqual({ months: [], locked: 5 })
+    expect(humble.listOrderGamekeys).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('library and ownership caches', () => {
+  it('loadLibrary without refresh reuses the cached library and fetches orders once', async () => {
+    const h = make()
+    expect(await h.loadLibrary()).toEqual({ keys: 2, steamKeys: 2, failedOrders: 0 })
+    expect(await h.loadLibrary()).toEqual({ keys: 2, steamKeys: 2, failedOrders: 0 })
+    expect(humble.listOrderGamekeys).toHaveBeenCalledTimes(1)
+    expect(humble.getOrders).toHaveBeenCalledTimes(1)
+  })
+
+  it('loadLibrary with refresh refetches orders', async () => {
+    const h = make()
+    await h.loadLibrary()
+    await h.loadLibrary({ refresh: true })
+    expect(humble.listOrderGamekeys).toHaveBeenCalledTimes(2)
+    expect(humble.getOrders).toHaveBeenCalledTimes(2)
+  })
+
+  it('buildReview reuses the owned list until the library is reloaded', async () => {
+    const h = make()
+    await h.buildReview()
+    await h.buildReview()
+    expect(steam.getOwned).toHaveBeenCalledTimes(1)
+    await h.loadLibrary({ refresh: true })
+    await h.buildReview()
+    expect(steam.getOwned).toHaveBeenCalledTimes(2)
+  })
+
+  it('exportCsv still asks Steam for ownership every time', async () => {
+    const h = make()
+    await h.buildReview()
+    await h.exportCsv({
+      steamOnly: false,
+      includeRevealed: true,
+      includeUnrevealed: true,
+      revealAll: false,
+      withOwnership: true
+    })
+    await h.exportCsv({
+      steamOnly: false,
+      includeRevealed: true,
+      includeUnrevealed: true,
+      revealAll: false,
+      withOwnership: true
+    })
+    expect(steam.getOwned).toHaveBeenCalledTimes(3)
+  })
+})
+
 describe('deleteAllData', () => {
   it('wipes keys, settings, sessions and caches', async () => {
     await keys.upsert({

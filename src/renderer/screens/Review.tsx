@@ -142,9 +142,14 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
     clearStoredCols()
   }
 
-  const fetchReview = useCallback(() => {
+  const fetchReview = useCallback((refresh: boolean) => {
     const fresh = takeFreshLibrary()
-    ;(fresh ? Promise.resolve(fresh) : gizmo.loadLibrary())
+    const library = refresh
+      ? gizmo.loadLibrary({ refresh: true })
+      : fresh
+        ? Promise.resolve(fresh)
+        : gizmo.loadLibrary()
+    library
       .then(async (summary) => {
         const result = await gizmo.buildReview()
         setFailedOrders(summary.failedOrders)
@@ -162,12 +167,13 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
       go('run')
       return
     }
-    fetchReview()
+    fetchReview(false)
   }, [fetchReview, go])
 
+  // Refresh and the error banner's retry both refetch: a retry usually follows a failed load.
   function retry(): void {
     setLoad({ status: 'loading' })
-    fetchReview()
+    fetchReview(true)
   }
 
   const byGroup = useMemo(() => {

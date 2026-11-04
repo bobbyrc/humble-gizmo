@@ -11,6 +11,7 @@ import {
   DEFAULT_SETTINGS,
   type ChoiceMonth,
   type HumbleKey,
+  type OwnedData,
   type Ownership,
   type ReviewItem,
   type RunEvent,
@@ -149,6 +150,7 @@ export function createHandlers(ctx: AppContext): Handlers {
   let library: Library | null = null
   let review: ReviewItem[] | null = null
   let months = new Map<string, ChoiceMonth>()
+  let owned: OwnedData | null = null
   let activeRunner: RedeemRunner | null = null
   let runDone: Promise<void> = Promise.resolve()
 
@@ -156,6 +158,7 @@ export function createHandlers(ctx: AppContext): Handlers {
     library = null
     review = null
     months = new Map()
+    owned = null
   }
 
   const loadLibrary = async (): Promise<Library> => {
@@ -165,10 +168,12 @@ export function createHandlers(ctx: AppContext): Handlers {
     library = lib
     review = null
     months = new Map()
+    owned = null
     return lib
   }
 
   const requireLibrary = async (): Promise<Library> => library ?? loadLibrary()
+  const requireOwned = async (): Promise<OwnedData> => owned ?? (owned = await steam.getOwned())
 
   const api: Handlers = {
     getSettings: async () => settings.get(),
@@ -197,8 +202,9 @@ export function createHandlers(ctx: AppContext): Handlers {
       return { humble: humbleIn, steam: steamIn }
     },
 
-    loadLibrary: async () => {
-      const lib = await loadLibrary()
+    loadLibrary: async (opts) => {
+      // A cached library needs no network call unless the caller asks for a refresh.
+      const lib = opts?.refresh !== true && library ? library : await loadLibrary()
       return {
         keys: lib.keys.length,
         steamKeys: steamKeys(lib.keys).length,
@@ -208,8 +214,7 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     buildReview: async () => {
       const lib = await requireLibrary()
-      const owned = await steam.getOwned()
-      const built = buildReviewList(lib.keys, owned, keys.all())
+      const built = buildReviewList(lib.keys, await requireOwned(), keys.all())
       review = built
       // Revealed values stay in the main process; the renderer gets copies without them.
       return built.map((it) => ({ ...it, key: { ...it.key, revealedKey: null } }))
@@ -217,6 +222,8 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     startRun: async (ids) => {
       if (activeRunner) throw new Error('A run is already active')
+      // Redeeming changes what Steam owns; the next review must not reuse the cached list.
+      owned = null
       const wanted = new Set(ids)
       const toRun = (review ?? [])
         .filter((it) => it.tickable && wanted.has(it.key.id))
@@ -259,24 +266,21 @@ export function createHandlers(ctx: AppContext): Handlers {
 
     listChoiceMonths: async () => {
       const lib = await requireLibrary()
-      const found: ChoiceMonth[] = []
-      let locked = 0
-      let sessionChecked = false
-      for (const order of findChoiceOrders(lib.orders)) {
+      let sessionCheck: Promise<unknown> | undefined
+      const results = await mapLimit(findChoiceOrders(lib.orders), 4, async (order) => {
         try {
-          const month = await humble.getChoiceMonth(order)
-          if (month) found.push(month)
+          return await humble.getChoiceMonth(order)
         } catch (e) {
           if (!(e instanceof ChoicePageRedirectError)) throw e
           // Humble redirects a month page it will not open. Confirm the session is still
           // valid first, so a signed-out user still gets the sign-in prompt.
-          if (!sessionChecked) {
-            await humble.listOrderGamekeys()
-            sessionChecked = true
-          }
-          locked++
+          sessionCheck ??= humble.listOrderGamekeys()
+          await sessionCheck
+          return 'locked' as const
         }
-      }
+      })
+      const found = results.filter((m): m is ChoiceMonth => m !== null && m !== 'locked')
+      const locked = results.filter((m) => m === 'locked').length
       months = new Map(found.map((m) => [m.gamekey, m]))
       return { months: found, locked }
     },
@@ -411,6 +415,24 @@ export function createHandlers(ctx: AppContext): Handlers {
   const wrapped = { ...api } as Record<string, unknown>
   for (const name of IPC_METHODS) wrapped[name] = wrap(api[name] as AnyAsync)
   return wrapped as Handlers
+}
+
+/** Maps items with at most `limit` calls in flight, keeping results in input order. */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let next = 0
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const i = next++
+      out[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return out
 }
 
 /** Only our own page may call the bridge: a file: URL in production, the dev server in dev. */

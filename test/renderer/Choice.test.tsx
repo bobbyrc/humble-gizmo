@@ -217,6 +217,27 @@ describe('Choice', () => {
     expect(order).toEqual(['load', 'list'])
   })
 
+  it('mount loads the library without forcing a refresh', async () => {
+    const api = mockGizmo({
+      listChoiceMonths: vi.fn(async () => ({ months: [month()], locked: 0 }))
+    })
+    renderChoice()
+    await screen.findByText('March 2025')
+    expect(api.loadLibrary).toHaveBeenCalledTimes(1)
+    expect(api.loadLibrary).toHaveBeenCalledWith()
+  })
+
+  it('Refresh reloads the library with refresh, then lists the months again', async () => {
+    const list = vi.fn(async () => ({ months: [month()], locked: 0 }))
+    const api = mockGizmo({ listChoiceMonths: list })
+    renderChoice()
+    await screen.findByText('March 2025')
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    expect(api.loadLibrary).toHaveBeenCalledTimes(2)
+    expect(api.loadLibrary).toHaveBeenLastCalledWith({ refresh: true })
+  })
+
   it('shows the sign-in banner for a bridge SessionExpiredError', async () => {
     const api = mockGizmo({
       listChoiceMonths: vi.fn().mockRejectedValue(bridgeError('SessionExpiredError', 'humble'))

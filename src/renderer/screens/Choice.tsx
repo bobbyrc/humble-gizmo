@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChoiceMonth } from '../../shared/types'
 import { gizmo } from '../gizmo'
 import ErrorBanner from '../components/ErrorBanner'
-import { Banner, Spinner } from '../components/ui'
+import { Banner, Button, Spinner } from '../components/ui'
 import { MonthCard } from '../components/choice/MonthCard'
 import '../components/choice/choice.css'
 
@@ -16,20 +16,15 @@ export default function Choice(): React.JSX.Element {
   const [result, setResult] = useState<Result | null>(null)
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
-  const libraryLoaded = useRef(false)
 
-  const [nonce, setNonce] = useState(0)
-  const load = useCallback(() => setNonce((n) => n + 1), [])
+  const [reload, setReload] = useState({ n: 0, refresh: false })
+  const load = useCallback(() => setReload((r) => ({ n: r.n + 1, refresh: false })), [])
+  const refreshAll = useCallback(() => setReload((r) => ({ n: r.n + 1, refresh: true })), [])
 
   useEffect(() => {
     let cancelled = false
-    // Refresh the library once per visit so claimed-elsewhere state is current.
-    const ready = libraryLoaded.current
-      ? Promise.resolve()
-      : gizmo.loadLibrary().then(() => {
-          libraryLoaded.current = true
-        })
-    ready
+    const library = reload.refresh ? gizmo.loadLibrary({ refresh: true }) : gizmo.loadLibrary()
+    library
       .then(() => gizmo.listChoiceMonths())
       .then(
         (listing) => {
@@ -47,7 +42,7 @@ export default function Choice(): React.JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [nonce])
+  }, [reload])
 
   async function claim(month: ChoiceMonth, identifiers: string[]): Promise<void> {
     if (inFlight.current) return
@@ -77,6 +72,11 @@ export default function Choice(): React.JSX.Element {
     <div>
       <div className="screen-header">
         <h1>Humble Choice</h1>
+        <div className="screen-header-actions">
+          <Button variant="secondary" onClick={refreshAll}>
+            Refresh
+          </Button>
+        </div>
       </div>
       {result?.kind === 'ok' && (
         <Banner tone="ok">Claimed. New keys will appear in your review list.</Banner>
