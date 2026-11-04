@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/renderer/components/ui.css"
+        ],
+        "createdAt": "2026-11-04T02:14:12.366Z",
+        "reason": "orchestrator: .dialog has border-radius: 0 (ui.css:223); the 3px navy top rule is the Ticket Wallet coupon head"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-04T02:23:16.390Z",
+        "reason": "orchestrator: spent decision-round sketches of rejected directions (Sorting Office, Big Box) and the pre-build Ticket Wallet sketch; their fonts are intentionally outside DESIGN.md and none ship"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "30px",
+        "files": [
+          "src/renderer/app.css"
+        ],
+        "createdAt": "2026-11-04T02:25:44.742Z",
+        "reason": "orchestrator: 30px is the rail wordmark logotype ('GIZMO'), not body or heading type"
+      }
+    ]
+  }
+}

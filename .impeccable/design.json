@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T02:20:26Z",
+  "title": "Design System: Humble Gizmo",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Stock White", "canonical": "#f1f1ee", "dark": "#0b1229" },
+      "sheet": { "role": "neutral", "displayName": "Coupon White", "canonical": "#ffffff", "dark": "#141d3a" },
+      "tab": { "role": "neutral", "displayName": "Tab Blue-Grey", "canonical": "#e2e5ec", "dark": "#1c2648" },
+      "tab-soft": { "role": "neutral", "displayName": "Tab Mist", "canonical": "#f5f6f9", "dark": "#18213f" },
+      "ink": { "role": "neutral", "displayName": "Ink Navy", "canonical": "#101a3a", "dark": "#eef0f7" },
+      "ink-2": { "role": "neutral", "displayName": "Ink Slate", "canonical": "#4a5372", "dark": "#a9b1cc" },
+      "rule": { "role": "primary", "displayName": "Rule Navy", "canonical": "#14245e", "dark": "#8e9bc9" },
+      "rule-soft": { "role": "neutral", "displayName": "Perforation Grey", "canonical": "#c9cedb", "dark": "#2e3a63" },
+      "rail": { "role": "primary", "displayName": "Carrier Navy", "canonical": "#14245e", "dark": "#121c44" },
+      "rail-2": { "role": "primary", "displayName": "Carrier Navy Hover", "canonical": "#1f3275", "dark": "#1b2757" },
+      "on-rail": { "role": "neutral", "displayName": "Rail White", "canonical": "#ffffff", "dark": "#ffffff" },
+      "on-rail-2": { "role": "neutral", "displayName": "Rail Mist", "canonical": "#c3cae6", "dark": "#a9b1cc" },
+      "primary": { "role": "primary", "displayName": "Primary Navy Fill", "canonical": "#14245e", "dark": "#dce2f5" },
+      "primary-hover": { "role": "primary", "displayName": "Primary Navy Hover", "canonical": "#1f3275", "dark": "#ffffff" },
+      "on-primary": { "role": "neutral", "displayName": "Primary Text", "canonical": "#ffffff", "dark": "#0b1229" },
+      "carbon": { "role": "secondary", "displayName": "Carbon Purple", "canonical": "#4b2e83", "dark": "#b7a2f2" },
+      "carbon-copy": { "role": "secondary", "displayName": "Carbon Copy Lilac", "canonical": "#e9e3f6", "dark": "#2a2150" },
+      "void": { "role": "tertiary", "displayName": "Void Red", "canonical": "#c42b1c", "dark": "#ff8a7a" },
+      "void-bg": { "role": "tertiary", "displayName": "Void Blush", "canonical": "#fbe8e5", "dark": "#3a1714" },
+      "gift": { "role": "tertiary", "displayName": "Gift Amber", "canonical": "#9a5200", "dark": "#f4b860" },
+      "gift-bg": { "role": "tertiary", "displayName": "Gift Cream", "canonical": "#fff0d9", "dark": "#3a2a10" },
+      "brand": { "role": "tertiary", "displayName": "Brand Red", "canonical": "#d9381e", "dark": "#d9381e", "scope": "wordmark mark and app icon only" },
+      "brass": { "role": "tertiary", "displayName": "Brass Focus", "canonical": "#e3ae3a", "dark": "#e3ae3a", "scope": "focus ring on the rail" },
+      "focus": { "role": "tertiary", "displayName": "Focus Blue", "canonical": "#1d5bd8", "dark": "#8fb0ff", "scope": "focus outline elsewhere" },
+      "signed-in": { "role": "tertiary", "displayName": "Signed-in Mint", "canonical": "#8ee0b5", "dark": "#8ee0b5", "scope": "rail status dot" },
+      "signed-out": { "role": "tertiary", "displayName": "Signed-out Coral", "canonical": "#ff8a7a", "dark": "#ff8a7a", "scope": "rail status dot" },
+      "scrim": { "role": "neutral", "displayName": "Scrim", "canonical": "rgba(11, 18, 41, 0.55)", "dark": "rgba(0, 0, 0, 0.6)", "scope": "dialog backdrop" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Page H1", "purpose": "Page H1 only; italic 700 Barlow Condensed, uppercase, +0.01em.", "textTransform": "uppercase", "fontStyle": "italic" },
+      "headline": { "displayName": "Headline", "purpose": "Page H2 content and dialog titles.", "textTransform": "uppercase" },
+      "title": { "displayName": "Title", "purpose": "Settings group heads and sign-in card names.", "textTransform": "uppercase" },
+      "button": { "displayName": "Button", "purpose": "All buttons except text links.", "textTransform": "uppercase" },
+      "nav": { "displayName": "Nav", "purpose": "Rail navigation items.", "textTransform": "uppercase" },
+      "tab": { "displayName": "Coupon Head", "purpose": "Tab labels on the Review and Choice coupon heads.", "textTransform": "uppercase" },
+      "label": { "displayName": "Column Label", "purpose": "Column heads and the rail's small wordmark line.", "textTransform": "uppercase" },
+      "pill": { "displayName": "Pill", "purpose": "Row notes.", "textTransform": "uppercase" },
+      "stamp": { "displayName": "Stamp", "purpose": "Outcome stamps.", "textTransform": "uppercase" },
+      "body": { "displayName": "Body", "purpose": "Reading text." },
+      "row": { "displayName": "Row", "purpose": "Game names in the list; truncates with an ellipsis." },
+      "link": { "displayName": "Link", "purpose": "Underlined text links." },
+      "data": { "displayName": "Data", "purpose": "Records a person checks: bundle, year, date, key, time. Tabular figures." },
+      "numeral": { "displayName": "Numeral", "purpose": "Counts in tallies (22px) and tab counts (14px)." }
+    },
+    "shadows": [
+      {
+        "name": "lift",
+        "value": "0 18px 48px rgba(11, 18, 41, 0.28)",
+        "darkValue": "0 18px 48px rgba(0, 0, 0, 0.5)",
+        "purpose": "Floating layers only: the unsigned-in coupon and dialogs. Sheets, rows, tabs and inputs have no shadow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "stamp-in",
+        "value": "160ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "purpose": "Stamp landing on the Run list only: from rotate(-4deg) scale(1.14) opacity 0 to rotate(-4deg) scale(1). Never in History. Removed under reduced motion."
+      },
+      {
+        "name": "control-color",
+        "value": "background-color 0.12s",
+        "purpose": "Button background change on hover."
+      },
+      {
+        "name": "spinner-turn",
+        "value": "0.8s linear infinite",
+        "purpose": "Spinner ring. Under reduced motion it becomes a static 6px dot."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition: none !important; animation: none !important",
+        "purpose": "Global under prefers-reduced-motion: reduce; stamps show at their final state instantly."
+      }
+    ],
+    "breakpoints": [
+      { "name": "review-columns-narrow", "value": "1100px", "purpose": "Review columns: From becomes flexible, Note narrows to 170px." },
+      { "name": "history-stack", "value": "999px", "purpose": "History stacks the export card below the table." }
+    ],
+    "radii": [
+      { "name": "sm", "value": "2px", "purpose": "Controls, pills, banners, inputs, sheet bottoms." },
+      { "name": "stamp", "value": "3px", "purpose": "Stamps." },
+      { "name": "dialog", "value": "0", "purpose": "Dialogs stay square." },
+      { "name": "notch", "value": "10px diagonal cut", "purpose": "Coupon heads and the active nav item only (clip-path)." }
+    ],
+    "appearance": {
+      "colorScheme": "light dark, following prefers-color-scheme",
+      "minWindow": "900px x 640px",
+      "fonts": "Barlow Condensed 600/700/700i, Libre Franklin 400/500/600, Courier Prime 400/700, bundled via @fontsource"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one spend action on a screen (Redeem, Claim, Export).",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Redeem 140</button>",
+      "css": ".ds-btn{height:40px;padding:0 18px;border:1.5px solid transparent;border-radius:2px;font:600 16px/1 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;transition:background-color .12s} .ds-btn-primary{background:#14245e;color:#fff} .ds-btn-primary:hover{background:#1f3275} .ds-btn-primary:focus-visible{outline:2px solid #1d5bd8;outline-offset:2px} .ds-btn:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Non-spending actions: Refresh, Stop, Cancel, sign out.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Refresh</button>",
+      "css": ".ds-btn{height:40px;padding:0 18px;border:1.5px solid transparent;border-radius:2px;font:600 16px/1 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;transition:background-color .12s} .ds-btn-secondary{background:transparent;color:#101a3a;border-color:#101a3a} .ds-btn-secondary:hover{background:#f5f6f9} .ds-btn-secondary:focus-visible{outline:2px solid #1d5bd8;outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive or irreversible actions only (Delete all local data).",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Delete all local data</button>",
+      "css": ".ds-btn{height:40px;padding:0 18px;border:1.5px solid transparent;border-radius:2px;font:600 16px/1 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;transition:background-color .12s} .ds-btn-danger{background:transparent;color:#c42b1c;border-color:#c42b1c} .ds-btn-danger:hover{background:#fbe8e5} .ds-btn-danger:focus-visible{outline:2px solid #1d5bd8;outline-offset:2px}"
+    },
+    {
+      "name": "Text Link Button",
+      "kind": "button",
+      "refersTo": "button-link",
+      "description": "Inline text actions: Untick all, Claim all, Claim on Humble.",
+      "html": "<button class=\"ds-btn-link\">Untick all</button>",
+      "css": ".ds-btn-link{background:transparent;border:0;padding:0;color:#101a3a;font:600 14px/1.5 'Libre Franklin',system-ui,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer} .ds-btn-link:hover{color:#4b2e83} .ds-btn-link:focus-visible{outline:2px solid #1d5bd8;outline-offset:2px}"
+    },
+    {
+      "name": "Stamp",
+      "kind": "custom",
+      "refersTo": "stamp-redeemed",
+      "description": "Outcome of a key: carbon for added, slate for already owned, void red for a failure with its reason.",
+      "html": "<span class=\"ds-stamp ds-stamp-redeemed\">Added</span>",
+      "css": ".ds-stamp{display:inline-block;border:2px solid currentColor;outline:1px solid currentColor;outline-offset:2px;border-radius:3px;padding:2px 9px;font:700 13px/1.3 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.1em;transform:rotate(-4deg);opacity:.92} .ds-stamp-redeemed{color:#4b2e83} .ds-stamp-owned{color:#4a5372} .ds-stamp-void{color:#c42b1c}"
+    },
+    {
+      "name": "Pill",
+      "kind": "custom",
+      "refersTo": "pill-warn",
+      "description": "A note on a row. Gift Amber for 'uses up its gift link'; muted for duplicate or matches; void for a failure note.",
+      "html": "<span class=\"ds-pill ds-pill-warn\">Uses up its gift link</span>",
+      "css": ".ds-pill{display:inline-block;border:1.5px solid;border-radius:2px;padding:2px 8px;font:600 13px/1.3 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap} .ds-pill-warn{color:#9a5200;border-color:#9a5200;background:#fff0d9} .ds-pill-muted{color:#4a5372;border-color:#c9cedb;background:transparent} .ds-pill-danger{color:#c42b1c;border-color:#c42b1c;background:#fbe8e5}"
+    },
+    {
+      "name": "Banner",
+      "kind": "custom",
+      "refersTo": "banner-warn",
+      "description": "Full-width status with an optional action. Tones: warn, danger, ok.",
+      "html": "<div class=\"ds-banner ds-banner-warn\" role=\"status\"><div>Couldn't load 2 orders, try again later</div><button class=\"ds-btn ds-btn-secondary\">Retry</button></div>",
+      "css": ".ds-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;box-sizing:border-box;border:1.5px solid;border-radius:2px;padding:12px 16px;background:#fff;color:#101a3a;font:400 15px/1.5 'Libre Franklin',system-ui,sans-serif} .ds-banner-warn{border-color:#9a5200;background:#fff0d9} .ds-banner-danger{border-color:#c42b1c;background:#fbe8e5} .ds-banner-ok{border-color:#4b2e83;background:#e9e3f6}"
+    },
+    {
+      "name": "Coupon Head Tabs",
+      "kind": "custom",
+      "refersTo": "tab-selected",
+      "description": "Group tabs for the Review screen. Selected head is coupon white and joins the sheet; counts sit after the label in carbon numerals.",
+      "html": "<div role=\"tablist\" class=\"ds-tabs\"><button role=\"tab\" aria-selected=\"true\" class=\"ds-tab ds-tab-on\">Will redeem <span class=\"ds-count\">143</span></button><button role=\"tab\" aria-selected=\"false\" class=\"ds-tab\">Failed before <span class=\"ds-count ds-count-danger\">6</span></button></div>",
+      "css": ".ds-tabs{display:flex;flex-wrap:wrap;gap:4px} .ds-tab{display:inline-flex;align-items:baseline;white-space:nowrap;padding:10px 16px 9px;border:0;background:#e2e5ec;color:#4a5372;font:600 15px/1.2 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)} .ds-tab:hover{color:#101a3a} .ds-tab-on{background:#fff;color:#101a3a} .ds-count{margin-left:8px;font:700 14px/1 'Courier Prime','Courier New',monospace;color:#4b2e83} .ds-count-danger{color:#c42b1c}"
+    },
+    {
+      "name": "Coupon Row",
+      "kind": "custom",
+      "refersTo": "sheet-row",
+      "description": "One key on the Review sheet: checkbox, game name, From in Courier, note pills. 44px with a dashed perforation.",
+      "html": "<div class=\"ds-row\"><label class=\"ds-check\"><input type=\"checkbox\" checked> Hollow Lantern</label><span class=\"ds-from\" title=\"Humble Indie Bundle 19 · 2012\">Humble Indie Bundle 19 · 2012</span><span class=\"ds-pill ds-pill-warn\">Uses up its gift link</span></div>",
+      "css": ".ds-row{display:grid;grid-template-columns:44px minmax(0,1fr) 260px 240px;align-items:center;height:44px;box-sizing:border-box;padding:0 20px;background:#fff;border-bottom:1px dashed #c9cedb} .ds-row:hover{background:linear-gradient(to right,transparent 0 64px,#f5f6f9 64px)} .ds-check{display:inline-flex;align-items:center;gap:10px;min-width:0;font:500 15px/1.3 'Libre Franklin',system-ui,sans-serif;color:#101a3a;padding-left:16px} .ds-check input{accent-color:#4b2e83;width:18px;height:18px;margin:0} .ds-from{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 13px/1.4 'Courier Prime','Courier New',monospace;color:#4a5372} .ds-pill{display:inline-block;border:1.5px solid;border-radius:2px;padding:2px 8px;font:600 13px/1.3 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;color:#9a5200;border-color:#9a5200;background:#fff0d9}"
+    },
+    {
+      "name": "Checkbox",
+      "kind": "input",
+      "refersTo": "sheet-row",
+      "description": "Native checkbox in carbon purple with a 10px gap to its label. Disabled label moves to Ink Slate.",
+      "html": "<label class=\"ds-check\"><input type=\"checkbox\" checked> Brinewick</label>",
+      "css": ".ds-check{display:inline-flex;align-items:center;gap:10px;font:400 15px/1.5 'Libre Franklin',system-ui,sans-serif;color:#101a3a;cursor:pointer} .ds-check input{accent-color:#4b2e83;width:18px;height:18px;margin:0} .ds-check input:disabled+span,.ds-check input:disabled{opacity:.6}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "text-input",
+      "description": "Settings and dialog input: 1.5px Ink Slate border on Coupon White, 2px radius.",
+      "html": "<input class=\"ds-input\" type=\"text\" value=\"\" aria-label=\"Steam Web API key\">",
+      "css": ".ds-input{box-sizing:border-box;height:40px;min-width:320px;padding:0 12px;border:1.5px solid #4a5372;border-radius:2px;background:#fff;color:#101a3a;font:400 15px 'Libre Franklin',system-ui,sans-serif} .ds-input:hover{border-color:#101a3a} .ds-input:focus-visible{outline:2px solid #1d5bd8;outline-offset:2px}"
+    },
+    {
+      "name": "Dialog",
+      "kind": "card",
+      "refersTo": "dialog",
+      "description": "Confirmation over a scrim. Square, 3px navy top rule, lift shadow. Cancel left of confirm.",
+      "html": "<div class=\"ds-dialog\" role=\"dialog\"><h2 class=\"ds-dialog-title\">Claim games</h2><p class=\"ds-dialog-body\">Claiming can't be undone.</p><div class=\"ds-dialog-actions\"><button class=\"ds-btn ds-btn-secondary\">Cancel</button><button class=\"ds-btn ds-btn-primary\">Claim 2</button></div></div>",
+      "css": ".ds-dialog{width:460px;max-width:calc(100% - 32px);box-sizing:border-box;background:#fff;color:#101a3a;border-top:3px solid #14245e;border-radius:0;padding:24px;box-shadow:0 18px 48px rgba(11,18,41,.28)} .ds-dialog-title{margin:0 0 12px;font:700 24px/1.1 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.02em} .ds-dialog-body{margin:0 0 16px;font:400 15px/1.5 'Libre Franklin',system-ui,sans-serif} .ds-dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px dashed #c9cedb} .ds-btn{height:40px;padding:0 18px;border:1.5px solid transparent;border-radius:2px;font:600 16px/1 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;cursor:pointer} .ds-btn-primary{background:#14245e;color:#fff} .ds-btn-secondary{background:transparent;color:#101a3a;border-color:#101a3a}"
+    },
+    {
+      "name": "Rail Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-current",
+      "description": "Rail navigation. The current item is stock white, inset, with a 10px notch at its top-left.",
+      "html": "<nav class=\"ds-rail\"><button class=\"ds-nav\" aria-current=\"page\">Redeem</button><button class=\"ds-nav\">History</button></nav>",
+      "css": ".ds-rail{width:232px;box-sizing:border-box;background:#14245e;padding:8px 0} .ds-nav{display:block;width:100%;box-sizing:border-box;text-align:left;padding:12px 24px;border:0;background:transparent;color:#c3cae6;font:600 16px/1.2 'Barlow Condensed','Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.1em;cursor:pointer} .ds-nav:hover{background:#1f3275;color:#fff} .ds-nav[aria-current='page']{width:calc(100% - 12px);margin-left:12px;padding-left:12px;background:#f1f1ee;color:#101a3a;clip-path:polygon(10px 0,100% 0,100% 100%,0 100%,0 10px)} .ds-nav:focus-visible{outline:2px solid #e3ae3a;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ticket Wallet",
+    "overview": "Every Humble key is a coupon in a traveller's ticket wallet. The screen shows the whole backlog as a coupon book: each key sits on a ruled sheet, the groups are coupon heads in a row of tabs, and nothing is spent until the person presses Redeem. Once Steam accepts a key, its coupon receives a stamp, and the stamp stays. History is the same stack of stamped coupons, so a key is never lost from view.\n\nThe look borrows the type, palette and ruled-coupon construction of a jet-age airline ticket wallet and nothing more. The ground is stock white. Sheets are coupon white, ruled with navy hairlines and broken by dashed tear lines. The rail and primary buttons are carrier navy. Counts, ticks and redeemed stamps are carbon purple. Void red is kept for failure. Density is working density: 44px rows, 15px body, many keys on one screen, because the audience is clearing a backlog. The personality sits in the sheet heads, the notches and the stamp. Body text stays plain for the less confident person.\n\nDark mode is the same wallet at night: a navy ground, sheets one step lighter, and the carbon and void tones lifted so they stay legible.",
+    "keyCharacteristics": [
+      "Ruled coupon sheets with dashed tear lines; sheets, rows and tabs carry no shadow",
+      "Notched corners on tab heads and the active nav item; sheets stay square",
+      "Barlow Condensed caps for chrome, Libre Franklin for reading, Courier Prime for data",
+      "The stamp is the one signature object, and it marks an outcome",
+      "Carrier navy for the rail and primary actions; carbon purple for counts and success; void red for failure",
+      "Calm, dense working surfaces with the world carried by rules, notches and stamps"
+    ],
+    "rules": [
+      { "name": "The Carbon Means Done Rule", "body": "Carbon purple marks what was counted or completed: counts, ticks, redeemed stamps and success. Two other carbon uses exist (link hover and the export heading); neither adds a new meaning.", "section": "colors" },
+      { "name": "The Red Is Failure Rule", "body": "Void red marks a failed key and its reason, and the danger tone. The danger tone is used only for destructive or irreversible actions (Delete all local data, Reveal and export). Red is never decorative.", "section": "colors" },
+      { "name": "The Italic Headline Rule", "body": "Only page H1s are italic. Every H2 and below is upright Barlow caps, so the slant is never a second voice.", "section": "typography" },
+      { "name": "The Typewriter Data Rule", "body": "Anything a person checks against their own records (bundle, year, date, key, time, count of attempts) is set in Courier Prime. Names and sentences are never set in it.", "section": "typography" },
+      { "name": "The Sheet Fills The Window Rule", "body": "The Review sheet takes the remaining window height and the list scrolls within it. Headers and tabs never scroll away, so the stamp and the Redeem count stay in view on a long backlog.", "section": "layout" },
+      { "name": "The Flat Sheet Rule", "body": "Sheets, rows, tabs and inputs never cast a shadow. A shadow appears only on a floating layer that sits over the screen.", "section": "elevation" },
+      { "name": "The Tear Line Rule", "body": "Rows are separated by dashed perforations, never solid lines. A vertical tear line appears only on the Review stub, at 64px.", "section": "shapes" },
+      { "name": "The Notch Rule", "body": "Only coupon heads (Review tabs and Choice month names) and the active nav item take a cut corner. Sheets, cards, dialogs and buttons stay square so the notch keeps its meaning.", "section": "shapes" },
+      { "name": "The Stamp Is A Result Rule", "body": "A stamp records a key's outcome or a completed state (added, already owned, error, signed in). A pill marks a note on a key that has not been acted on yet.", "section": "components" },
+      { "name": "The Ink-Wear Stamp Rule", "body": "Every stamp carries the procedural ink-wear mask (src/renderer/assets/stamp-ink.png, generated by scripts/gen-stamp-ink.mjs, applied with mask-image). The mask is the stamp's only texture; the renderer build sets assetsInlineLimit to 0 because the CSP blocks data: images.", "section": "components" },
+      { "name": "The One Landing Rule", "body": "Stamps are the only entrance motion in the system. On the Run list a stamp lands once in 160ms: from rotate(-4deg) scale(1.14) and opacity 0 to rotate(-4deg) scale(1), on a cubic-bezier(0.2, 0.8, 0.2, 1) ease. It never runs in History. Reduced motion removes it and every other transition.", "section": "components" },
+      { "name": "The Working Screens Rule", "body": "The world lives in rules, tabs, notches and stamps. Working screens carry no paper grain and no decorative stripes. The only texture on a working screen is the stamp's ink-wear mask. The speed-stripe mark is the wordmark's alone.", "section": "dos" }
+    ],
+    "dos": [
+      "Do use Carrier Navy for the one primary action on each screen, and Carbon Purple for counts and success.",
+      "Do use a Stamp for a key's outcome, and a Pill for a note on a key that has not been acted on yet.",
+      "Do pair every colour with words. A tone is never the only signal; \"uses up its gift link\" and \"won't work\" carry the meaning in text.",
+      "Do keep rows at 44px with dashed perforations, and keep the Review sheet filling the window with its list scrolling inside it.",
+      "Do set counts in Courier Prime bold, and name the cost in plain words before an irreversible action.",
+      "Do keep the Stamp double rule and rotation exactly as set (-4deg, 92% opacity); the stamp is the one object that is allowed to tilt.",
+      "Do use the danger tone and the typed confirmation for any action that cannot be undone."
+    ],
+    "donts": [
+      "Don't add an eyebrow or kicker label above a heading. The surface brief bans it; the headings stand alone.",
+      "Don't use italic outside page H1s.",
+      "Don't shadow sheets, rows, tabs or inputs. The lift shadow is for floating layers only.",
+      "Don't use hard offset shadows; the world is flat rules and soft lift, not a neobrutalist offset.",
+      "Don't use Void Red for decoration or for a non-destructive state. A failed key is red; a destructive action is red; nothing else is.",
+      "Don't use Brand Red beyond the wordmark mark and the app icon.",
+      "Don't set body text or a primary button in Carbon Purple.",
+      "Don't add paper grain, extra textures or decorative stripes to a working screen. The stamp's ink-wear mask is the one allowed texture.",
+      "Don't round corners beyond 2px on controls or 3px on stamps; no pill-shaped buttons.",
+      "Don't set display type in a system face. Barlow Condensed is the display face; the fallbacks exist only for a missing font.",
+      "Don't load remote fonts, icons or images. Every face and mark is bundled, and the renderer's CSP is `default-src 'self'`.",
+      "Don't use a glyph icon to carry meaning. Words, rules and stamps carry it."
+    ]
+  }
+}
