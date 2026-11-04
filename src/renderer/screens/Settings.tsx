@@ -116,7 +116,7 @@ export default function Settings(): React.JSX.Element {
       <h1>Settings</h1>
       {fail && <ErrorBanner error={fail.e} onRetry={fail.retry} />}
 
-      <div className="settings-group">
+      <div className="settings-group sheet">
         <h2>Privacy</h2>
         <UpdateToggle
           checked={settings.autoUpdate}
@@ -144,24 +144,26 @@ export default function Settings(): React.JSX.Element {
         </div>
       </div>
 
-      <div className="settings-group">
+      <div className="settings-group sheet">
         <h2>Background</h2>
         <label className="settings-row">
           <span>Check schedule</span>
-          <select
-            className="settings-select"
-            value={scheduleValue}
-            onChange={(e) => {
-              const opt = SCHEDULE.find((o) => o.value === e.target.value)
-              void save({ scheduleHours: opt ? opt.hours : null })
-            }}
-          >
-            {SCHEDULE.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <span className="select-wrap">
+            <select
+              className="settings-select"
+              value={scheduleValue}
+              onChange={(e) => {
+                const opt = SCHEDULE.find((o) => o.value === e.target.value)
+                void save({ scheduleHours: opt ? opt.hours : null })
+              }}
+            >
+              {SCHEDULE.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </span>
         </label>
         <Checkbox
           checked={settings.keepInBackground}
@@ -175,7 +177,7 @@ export default function Settings(): React.JSX.Element {
         />
       </div>
 
-      <div className="settings-group">
+      <div className="settings-group sheet">
         <h2>Accounts</h2>
         {(
           [
@@ -215,17 +217,19 @@ export default function Settings(): React.JSX.Element {
         </div>
       </Advanced>
 
-      <div className="settings-group">
+      <div className="settings-group sheet">
         <h2>Data</h2>
         {!encrypted && <Banner tone="warn">{NO_KEYRING_NOTICE}</Banner>}
-        <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-          Delete all local data
-        </Button>
+        <div className="settings-row">
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+            Delete all local data
+          </Button>
+        </div>
       </div>
 
-      <div className="settings-group">
+      <div className="settings-group sheet">
         <h2>About</h2>
-        <p className="muted">{`Version ${version ?? ''}`.trim()}</p>
+        <p className="data">{`Version ${version ?? ''}`.trim()}</p>
         <p className="muted small">{NOT_AFFILIATED}</p>
       </div>
 
@@ -247,7 +251,7 @@ function Advanced({ children }: { children: React.ReactNode }): React.JSX.Elemen
   const [open, setOpen] = useState(false)
   const bodyId = useId()
   return (
-    <section className="settings-group">
+    <section className="settings-group sheet">
       <button
         type="button"
         className="settings-disclosure"
@@ -255,7 +259,17 @@ function Advanced({ children }: { children: React.ReactNode }): React.JSX.Elemen
         aria-controls={open ? bodyId : undefined}
         onClick={() => setOpen((o) => !o)}
       >
-        <span aria-hidden="true">{open ? '▾' : '▸'}</span> Advanced
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path
+            d="M4 2l4 4-4 4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        Advanced
       </button>
       {open && <div id={bodyId}>{children}</div>}
     </section>

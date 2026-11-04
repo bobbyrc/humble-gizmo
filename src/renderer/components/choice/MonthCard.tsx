@@ -39,58 +39,66 @@ export function MonthCard({
     <section className="choice-month">
       <header className="choice-month-header">
         <h2 className="choice-month-name">{month.name}</h2>
-        <span className="choice-muted">
+        <span className="data choice-rule">
           {month.usesChoices
             ? `Pick up to ${month.choicesRemaining} (${k} picked)`
             : `Claim all ${claimable.length} games`}
         </span>
       </header>
-      <ul className="choice-games">
-        {month.games.map((g) => {
-          const rating = ratingText(g.rating)
-          return (
-            <li key={g.identifier} className="choice-game">
-              {g.claimable ? (
-                <Checkbox
-                  checked={picked.includes(g.identifier)}
-                  disabled={busy || (atLimit && !picked.includes(g.identifier))}
-                  onChange={(on) => toggle(g.identifier, on)}
-                  label={g.title}
-                />
-              ) : (
-                <>
-                  <span className="choice-title">{g.title}</span>
-                  <Button
-                    variant="link"
-                    onClick={() =>
-                      void gizmo.openExternal(
-                        `https://www.humblebundle.com/subscription/${month.choiceUrl}/${g.identifier}`
-                      )
-                    }
-                  >
-                    Claim on Humble
-                  </Button>
-                </>
-              )}
-              {rating && <span className="choice-muted">{rating}</span>}
-            </li>
-          )
-        })}
-      </ul>
-      <footer className="choice-footer">
-        {canClaimAll && (
-          <Button
-            variant="link"
-            disabled={busy}
-            onClick={() => setPicked(claimable.map((g) => g.identifier))}
-          >
-            Claim all
+      <div className="sheet">
+        <ul className="choice-games">
+          {month.games.map((g) => {
+            const rating = ratingText(g.rating)
+            return (
+              <li key={g.identifier} className="choice-game sheet-row">
+                <div
+                  className={
+                    g.claimable ? 'choice-game-main' : 'choice-game-main choice-game-main-unclaimed'
+                  }
+                >
+                  {g.claimable ? (
+                    <Checkbox
+                      checked={picked.includes(g.identifier)}
+                      disabled={busy || (atLimit && !picked.includes(g.identifier))}
+                      onChange={(on) => toggle(g.identifier, on)}
+                      label={g.title}
+                    />
+                  ) : (
+                    <>
+                      <span className="choice-title">{g.title}</span>
+                      <Button
+                        variant="link"
+                        onClick={() =>
+                          void gizmo.openExternal(
+                            `https://www.humblebundle.com/subscription/${month.choiceUrl}/${g.identifier}`
+                          )
+                        }
+                      >
+                        Claim on Humble
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {rating && <span className="data choice-rating">{rating}</span>}
+              </li>
+            )
+          })}
+        </ul>
+        <footer className="choice-footer">
+          {canClaimAll && (
+            <Button
+              variant="link"
+              disabled={busy}
+              onClick={() => setPicked(claimable.map((g) => g.identifier))}
+            >
+              Claim all
+            </Button>
+          )}
+          <Button disabled={busy || k === 0} onClick={() => setConfirming(true)}>
+            {`Claim ${k}`}
           </Button>
-        )}
-        <Button disabled={busy || k === 0} onClick={() => setConfirming(true)}>
-          {`Claim ${k}`}
-        </Button>
-      </footer>
+        </footer>
+      </div>
       <ConfirmDialog
         open={confirming}
         title="Claim games"

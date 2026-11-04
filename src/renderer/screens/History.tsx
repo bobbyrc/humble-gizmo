@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
 import { gizmo } from '../gizmo'
 import ErrorBanner from '../components/ErrorBanner'
-import { Banner, Button, Checkbox, ConfirmDialog, Pill, Spinner } from '../components/ui'
+import { Banner, Button, Checkbox, ConfirmDialog, Spinner, Stamp } from '../components/ui'
 import { CODE_LABELS } from '../../core/steamCodes'
 import type { KeyRecord } from '../../shared/types'
 import '../components/history/history.css'
 
-function ResultPill({ record }: { record: KeyRecord }): React.JSX.Element {
+function ResultStamp({ record }: { record: KeyRecord }): React.JSX.Element {
   switch (record.outcome) {
     case 'redeemed':
-      return <Pill tone="ok">Added</Pill>
+      return <Stamp tone="redeemed">Added</Stamp>
     case 'owned':
-      return <Pill tone="muted">Already owned</Pill>
+      return <Stamp tone="owned">Already owned</Stamp>
     case 'error':
       return (
-        <Pill tone="danger">
+        <Stamp tone="void">
           {(record.resultCode !== null && CODE_LABELS[record.resultCode]) || 'Error'}
-        </Pill>
+        </Stamp>
       )
     default:
-      return <Pill tone="muted">In progress</Pill>
+      return <span className="data">In progress</span>
   }
 }
 
@@ -52,6 +52,8 @@ export default function History(): React.JSX.Element {
   useEffect(fetchHistory, [fetchHistory])
 
   const nothingToExport = !includeRevealed && !includeUnrevealed
+  // A failed load with no records shows only the error banner, not an empty table sheet.
+  const showSheet = error === null || (records !== null && records.length > 0)
 
   async function runExport(): Promise<void> {
     setConfirming(false)
@@ -81,38 +83,40 @@ export default function History(): React.JSX.Element {
 
   return (
     <div className="history">
-      <h1 className="history-title">History</h1>
+      <h1>History</h1>
       {error !== null && <ErrorBanner error={error} onRetry={retry} />}
       {savedPath !== null && <Banner tone="ok">{`Saved to ${savedPath}`}</Banner>}
       <div className="history-cols">
-        <div className="history-table-wrap">
-          {records === null ? (
-            error === null && <Spinner label="Loading…" />
-          ) : records.length === 0 ? (
-            <p className="history-empty">Nothing redeemed yet.</p>
-          ) : (
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Result</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>
-                      <ResultPill record={r} />
-                    </td>
-                    <td className="history-date">{formatDate(r.updatedAt)}</td>
+        {showSheet && (
+          <div className="history-table-wrap sheet">
+            {records === null ? (
+              error === null && <Spinner label="Loading…" />
+            ) : records.length === 0 ? (
+              <p className="history-empty">Nothing redeemed yet.</p>
+            ) : (
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Result</th>
+                    <th>Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody>
+                  {records.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.name}</td>
+                      <td>
+                        <ResultStamp record={r} />
+                      </td>
+                      <td className="history-date data">{formatDate(r.updatedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
         <div className="export-card">
           <h2>Export to CSV</h2>
           <Checkbox label="Steam keys only" checked={steamOnly} onChange={setSteamOnly} />

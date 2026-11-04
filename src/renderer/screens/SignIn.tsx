@@ -3,7 +3,7 @@ import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
 import { setFreshLibrary } from '../runState'
 import type { LibrarySummary } from '../../shared/ipc'
-import { Banner, Button, Pill, Spinner } from '../components/ui'
+import { Banner, Button, Pill, Spinner, Stamp } from '../components/ui'
 import ErrorBanner from '../components/ErrorBanner'
 import './signin.css'
 
@@ -131,7 +131,7 @@ export default function SignIn(): React.JSX.Element {
           <section key={service} className="signin-card" aria-label={name}>
             <div className="signin-name">{name}</div>
             {status[service] ? (
-              <Pill tone="ok">Signed in ✓</Pill>
+              <Stamp tone="redeemed">Signed in</Stamp>
             ) : (
               <>
                 <Pill tone="muted">Not signed in</Pill>

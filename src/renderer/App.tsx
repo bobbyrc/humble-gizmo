@@ -26,6 +26,29 @@ const SERVICES: { service: Service; name: string }[] = [
   { service: 'steam', name: 'Steam' }
 ]
 
+function Wordmark({ variant }: { variant: 'rail' | 'card' }): React.JSX.Element {
+  const mark = (
+    <svg className="wordmark-mark" viewBox="0 0 28 12" aria-hidden="true">
+      <path d="M5 0h8l-5 12H0z" />
+      <path d="M17 0h11l-5 12H12z" />
+    </svg>
+  )
+  return variant === 'rail' ? (
+    <div className="wordmark wordmark-rail">
+      {mark}
+      <span className="wordmark-text">
+        <span className="wordmark-small">HUMBLE</span>
+        <span className="wordmark-big">GIZMO</span>
+      </span>
+    </div>
+  ) : (
+    <div className="wordmark wordmark-card">
+      {mark}
+      <span>HUMBLE GIZMO</span>
+    </div>
+  )
+}
+
 function ScreenView({ screen }: { screen: Screen }): React.JSX.Element {
   switch (screen) {
     case 'welcome':
@@ -74,7 +97,10 @@ function Shell({ initialStatus }: { initialStatus: Status }): React.JSX.Element 
     return (
       <div className="shell-card">
         <main className="shell-card-inner">
-          <ScreenView screen={screen} />
+          <Wordmark variant="card" />
+          <div className="shell-card-body">
+            <ScreenView screen={screen} />
+          </div>
         </main>
       </div>
     )
@@ -84,6 +110,7 @@ function Shell({ initialStatus }: { initialStatus: Status }): React.JSX.Element 
   return (
     <div className="shell-main">
       <aside className="sidebar">
+        <Wordmark variant="rail" />
         <nav className="sidebar-nav" aria-label="Main">
           {NAV_ITEMS.map((item) => (
             <button
@@ -102,7 +129,8 @@ function Shell({ initialStatus }: { initialStatus: Status }): React.JSX.Element 
             const signedIn = status[service]
             const content = (
               <>
-                {name} <span className={signedIn ? 'dot' : 'dot dot-off'} aria-hidden="true" />{' '}
+                <span className="account-name">{name}</span>{' '}
+                <span className={signedIn ? 'dot' : 'dot dot-off'} aria-hidden="true" />{' '}
                 {signedIn ? 'Signed in' : 'Signed out'}
               </>
             )

@@ -1,57 +1,71 @@
-.choice-month {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--s4);
-  margin-bottom: var(--s4);
+.choice-months {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 .choice-month-header {
   display: flex;
-  align-items: baseline;
-  gap: var(--s3);
-  margin-bottom: var(--s3);
+  align-items: flex-end;
+  gap: 16px;
 }
-.choice-month-name {
+/* .content h2 sets the page-heading type, so the tab needs the more specific selector. */
+.choice-month .choice-month-name {
   margin: 0;
-  font-size: var(--fs-lg);
-  font-weight: 600;
+  padding: 10px 16px 9px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: 700 18px/1.1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%);
 }
-.choice-muted {
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
+.choice-rule {
+  padding-bottom: 9px;
 }
 .choice-games {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.choice-game {
+.choice-game.sheet-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s3);
+}
+.choice-game:last-child {
+  border-bottom: 0;
+}
+.choice-game-main {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  padding: var(--s2) 0;
-  border-top: 1px solid var(--border);
+  min-width: 0;
 }
-.choice-game > .choice-muted {
-  margin-left: auto;
+/* Checkbox is 18px wide plus its 10px gap (ui.css), so the title lines up with checkbox labels. */
+.choice-game-main-unclaimed {
+  padding-left: 28px;
+}
+.choice-rating {
+  justify-self: end;
+  text-align: right;
 }
 .choice-footer {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
   gap: var(--s3);
-  margin-top: var(--s3);
+  padding: 14px 20px;
+  border-top: 1px dashed var(--rule-soft);
 }
-.choice-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--s4);
+.choice-footer > :last-child {
+  margin-left: auto;
 }
-.choice-header h1 {
+.choice-empty {
+  padding: 32px;
+  color: var(--ink-2);
+}
+.choice-empty p {
   margin: 0;
-  font-size: var(--fs-xl);
-  font-weight: 600;
 }
 .choice-failed {
   margin: var(--s1) 0 0;

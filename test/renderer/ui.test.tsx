@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Checkbox, ConfirmDialog, Section } from '../../src/renderer/components/ui'
+import { Checkbox, ConfirmDialog, Stamp, Tabs } from '../../src/renderer/components/ui'
 
 afterEach(cleanup)
 
@@ -31,6 +31,16 @@ describe('ConfirmDialog', () => {
     expect(dialog.contains(document.activeElement)).toBe(true)
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(onCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks a danger dialog with dialog-danger and leaves a primary one unmarked', () => {
+    const { unmount } = render(
+      <ConfirmDialog {...base} tone="danger" onConfirm={() => {}} onCancel={() => {}} />
+    )
+    expect(screen.getByRole('dialog').classList.contains('dialog-danger')).toBe(true)
+    unmount()
+    render(<ConfirmDialog {...base} tone="primary" onConfirm={() => {}} onCancel={() => {}} />)
+    expect(screen.getByRole('dialog').classList.contains('dialog-danger')).toBe(false)
   })
 
   it('renders nothing when closed', () => {
@@ -92,26 +102,76 @@ describe('ConfirmDialog', () => {
   })
 })
 
-describe('Section', () => {
-  it('toggles aria-expanded', () => {
-    render(
-      <Section label="Owned" count={2} defaultOpen={false}>
-        <p>inside</p>
-      </Section>
-    )
-    const header = screen.getByRole('button', { name: /Owned/ })
-    expect(header.getAttribute('aria-expanded')).toBe('false')
-    expect(header.hasAttribute('aria-controls')).toBe(false)
-    fireEvent.click(header)
-    expect(header.getAttribute('aria-expanded')).toBe('true')
-  })
-})
-
 describe('Checkbox', () => {
   it('calls onChange(true)', () => {
     const onChange = vi.fn()
     render(<Checkbox checked={false} onChange={onChange} label="Pick me" />)
     fireEvent.click(screen.getByLabelText('Pick me'))
     expect(onChange).toHaveBeenCalledWith(true)
+  })
+})
+
+describe('Stamp', () => {
+  it('renders its text with the tone class', () => {
+    render(<Stamp tone="void">VOID</Stamp>)
+    const el = screen.getByText('VOID')
+    expect(el.className).toBe('stamp stamp-void')
+  })
+})
+
+describe('Tabs', () => {
+  const tabs = [
+    { id: 'a', label: 'Ready', count: 3 },
+    { id: 'b', label: 'Owned', count: 0, tone: 'warn' as const },
+    { id: 'c', label: 'Failed', count: 1, tone: 'danger' as const }
+  ]
+  function setup(active = 'a'): ReturnType<typeof vi.fn> {
+    const onChange = vi.fn()
+    render(
+      <Tabs label="Keys" tabs={tabs} active={active} onChange={onChange}>
+        <p>panel body</p>
+      </Tabs>
+    )
+    return onChange
+  }
+
+  it('renders a labelled tablist with counts and roving tabIndex', () => {
+    setup()
+    expect(screen.getByRole('tablist', { name: 'Keys' })).toBeTruthy()
+    const ready = screen.getByRole('tab', { name: 'Ready 3' })
+    expect(ready.getAttribute('aria-selected')).toBe('true')
+    expect(ready.tabIndex).toBe(0)
+    const owned = screen.getByRole('tab', { name: 'Owned 0' })
+    expect(owned.getAttribute('aria-selected')).toBe('false')
+    expect(owned.tabIndex).toBe(-1)
+  })
+
+  it('labels the panel by the active tab', () => {
+    setup('b')
+    const panel = screen.getByRole('tabpanel')
+    const owned = screen.getByRole('tab', { name: 'Owned 0' })
+    expect(panel.getAttribute('aria-labelledby')).toBe(owned.id)
+    expect(owned.getAttribute('aria-controls')).toBe(panel.id)
+    expect(screen.getByText('panel body')).toBeTruthy()
+  })
+
+  it('calls onChange on click', () => {
+    const onChange = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Failed 1' }))
+    expect(onChange).toHaveBeenCalledWith('c')
+  })
+
+  it('moves with arrows (wrapping), Home and End', () => {
+    const onChange = setup('c')
+    const last = screen.getByRole('tab', { name: 'Failed 1' })
+    fireEvent.keyDown(last, { key: 'ArrowRight' })
+    expect(onChange).toHaveBeenLastCalledWith('a')
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Ready 3' }))
+    fireEvent.keyDown(last, { key: 'ArrowLeft' })
+    expect(onChange).toHaveBeenLastCalledWith('b')
+    fireEvent.keyDown(last, { key: 'Home' })
+    expect(onChange).toHaveBeenLastCalledWith('a')
+    fireEvent.keyDown(last, { key: 'End' })
+    expect(onChange).toHaveBeenLastCalledWith('c')
   })
 })

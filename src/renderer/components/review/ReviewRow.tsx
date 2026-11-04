@@ -11,16 +11,14 @@ export function ReviewRow({
   ticked: boolean
   onToggle: (checked: boolean) => void
 }): React.JSX.Element {
-  const { reasons } = item
+  const { reasons, key } = item
+  const from = [key.bundle, key.purchased?.slice(0, 4)].filter(Boolean).join(' · ') || '—'
+  // The row is a grid; the Checkbox wrapper is display: contents so input and label take columns 1-2.
   return (
     <>
-      <span className={`review-row-name${item.tickable ? '' : ' review-row-muted'}`}>
-        <Checkbox
-          checked={ticked}
-          disabled={!item.tickable}
-          onChange={onToggle}
-          label={item.key.name}
-        />
+      <Checkbox checked={ticked} disabled={!item.tickable} onChange={onToggle} label={key.name} />
+      <span className="data review-row-from" title={from}>
+        {from}
       </span>
       <span className="review-row-pills">
         {reasons.includes('unrevealed') && <Pill tone="warn">{UNREVEALED_LABEL}</Pill>}

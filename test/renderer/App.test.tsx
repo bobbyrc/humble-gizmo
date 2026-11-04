@@ -58,7 +58,13 @@ describe('App', () => {
     const row = await screen.findByRole('button', { name: /Humble.*Signed out/ })
     fireEvent.click(row)
     expect(api.signIn).toHaveBeenCalledWith('humble')
-    expect(await screen.findByText(/Humble.*Signed in/)).toBeTruthy()
+    // The service name sits in its own styled span, so match on the row's full text.
+    expect(
+      await screen.findByText(
+        (_, el) =>
+          !!el?.classList.contains('account-row') && /Humble.*Signed in/.test(el.textContent ?? '')
+      )
+    ).toBeTruthy()
   })
 
   it('shows a retryable error when startup loading fails', async () => {

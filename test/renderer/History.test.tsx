@@ -48,6 +48,14 @@ describe('History', () => {
     expect(screen.getAllByRole('row')).toHaveLength(5)
   })
 
+  it('renders a redeemed record as an Added stamp', async () => {
+    mockGizmo({ history: async () => [rec({ id: '1', name: 'Alpha' })] })
+    renderScreen()
+    await screen.findByText('Alpha')
+    const stamp = document.querySelector('.stamp-redeemed')
+    expect(stamp?.textContent).toBe('Added')
+  })
+
   it('shows the empty state', async () => {
     mockGizmo()
     renderScreen()
@@ -151,6 +159,17 @@ describe('History', () => {
     renderScreen()
     expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+  })
+
+  it('renders no table sheet when history fails to load', async () => {
+    mockGizmo({
+      history: async () => {
+        throw new Error('boom')
+      }
+    })
+    renderScreen()
+    await screen.findByText('Something went wrong. Try again.')
+    expect(document.querySelector('.history-table-wrap')).toBeNull()
   })
 
   it('shows the service-changed banner for a bridge ServiceChangedError', async () => {

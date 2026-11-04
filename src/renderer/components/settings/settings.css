@@ -1,97 +1,125 @@
-.muted {
-  color: var(--text-muted);
-}
-
-.small {
-  font-size: var(--fs-sm);
-}
-
-.welcome {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-}
-
-.welcome h1 {
-  margin: 0;
-  font-size: var(--fs-xxl);
-  font-weight: 600;
-}
-
-.welcome p {
-  margin: 0;
-}
-
-.welcome-toggle {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--s3) var(--s4);
-}
-
-.welcome-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
+/* The h1 comes from the shared `.content h1` style in app.css. */
 .settings {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
+  gap: 24px;
+  max-width: 760px;
 }
 
 .settings h1 {
   margin: 0;
-  font-size: var(--fs-xl);
-  font-weight: 600;
 }
 
 .settings-group {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  align-items: flex-start;
 }
 
 .settings-group h2 {
   margin: 0;
-  font-size: var(--fs-lg);
-  font-weight: 600;
+  padding: 16px 20px 12px;
+  font: 700 20px/1.1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Each entry in a sheet sits below a dashed perforation. */
+.settings-group .settings-row,
+.settings-group .settings-field,
+.settings-group > p,
+.settings-group > .checkbox {
+  margin: 0;
+  padding: 14px 20px;
+  border-top: 1px dashed var(--rule-soft);
+}
+
+/* A banner keeps its own 1.5px tone border; the perforation would replace its top edge. */
+.settings-group > .banner {
+  width: auto;
+  margin: 14px 20px;
 }
 
 .settings-row {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: 12px;
 }
 
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: 8px;
   align-items: flex-start;
 }
 
 .settings-input,
 .settings-select {
-  font: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  font: 400 15px var(--font-body);
+  color: var(--ink);
+  background: var(--sheet);
+  border: 1.5px solid var(--ink-2);
   border-radius: var(--radius);
-  padding: var(--s2) var(--s3);
 }
 
 .settings-input {
   min-width: 320px;
 }
 
+.select-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 1.75px solid var(--ink-2);
+  border-bottom: 1.75px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.settings-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.settings-select:hover {
+  border-color: var(--ink);
+}
+
 .settings-disclosure {
-  font: inherit;
-  font-weight: 600;
-  font-size: var(--fs-lg);
-  color: var(--text);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 16px 20px 12px;
+  font: 700 20px/1.1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: left;
+  color: var(--ink);
   background: none;
   border: 0;
-  padding: 0;
   cursor: pointer;
+}
+
+.settings-disclosure svg {
+  flex: none;
+  transition: transform 120ms;
+}
+
+.settings-disclosure[aria-expanded='true'] svg {
+  transform: rotate(90deg);
 }

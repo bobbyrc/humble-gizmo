@@ -5,7 +5,7 @@ import { useNav } from '../nav'
 import { Button } from '../components/ui'
 import ErrorBanner from '../components/ErrorBanner'
 import UpdateToggle from '../components/settings/UpdateToggle'
-import '../components/settings/settings.css'
+import './signin.css'
 
 export default function Welcome(): React.JSX.Element {
   const { go } = useNav()
@@ -30,18 +30,18 @@ export default function Welcome(): React.JSX.Element {
     <div className="welcome">
       {error && <ErrorBanner error={error.e} onRetry={() => void onContinue()} />}
       <h1>{PRIVACY_TITLE}</h1>
-      <p>{PRIVACY_LINE_1}</p>
-      <p>{PRIVACY_LINE_2}</p>
+      <p className="welcome-copy">{PRIVACY_LINE_1}</p>
+      <p className="welcome-copy">{PRIVACY_LINE_2}</p>
       <div className="welcome-toggle">
         <UpdateToggle checked={autoUpdate} onChange={setAutoUpdate} />
       </div>
-      <p className="muted small">You can change this any time in Settings.</p>
+      <p className="muted small welcome-note">You can change this any time in Settings.</p>
       <div className="welcome-actions">
         <Button disabled={busy} onClick={() => void onContinue()}>
           Continue
         </Button>
       </div>
-      <p className="muted small">{NOT_AFFILIATED}</p>
+      <p className="muted small welcome-foot">{NOT_AFFILIATED}</p>
     </div>
   )
 }

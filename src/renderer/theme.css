@@ -1,62 +1,109 @@
+/* Design tokens: see docs/design/ui.md */
 :root {
-  --bg: #f6f5f2;
-  --surface: #ffffff;
-  --surface-2: #efede8;
-  --text: #1b1d1f;
-  --text-muted: #5e6368;
-  --border: #dedbd4;
-  --accent: #1f7a5c;
-  --accent-hover: #186049;
-  --accent-text: #ffffff;
-  --warn: #8a5800;
-  --warn-bg: #fbf1dc;
-  --danger: #b3261e;
-  --danger-bg: #fbe9e7;
-  --focus: #2f6feb;
-  --radius: 8px;
-  --row-h: 44px;
+  /* light: the wallet on a desk */
+  --ground: #f1f1ee; /* stock white: page background */
+  --sheet: #ffffff; /* coupon stock: lists, cards, dialogs */
+  --tab: #e2e5ec; /* inactive coupon heads, row hover is --tab-soft */
+  --tab-soft: #f5f6f9;
+  --ink: #101a3a; /* body text */
+  --ink-2: #4a5372; /* secondary text (7.5:1 on white) */
+  --rule: #14245e; /* strong rules: sheet tops, column-head underline */
+  --rule-soft: #c9cedb; /* dashed tear lines between rows */
+  --rail: #14245e; /* carrier navy: nav rail, unsigned-in backdrop */
+  --rail-2: #1f3275; /* rail hover */
+  --on-rail: #ffffff;
+  --on-rail-2: #c3cae6;
+  --primary-bg: #14245e;
+  --primary-bg-hover: #1f3275;
+  --primary-fg: #ffffff;
+  --carbon: #4b2e83; /* carbon purple: counts, ticks, REDEEMED stamp, ok */
+  --carbon-copy: #e9e3f6; /* carbon-copy surface (export card, ok banner) */
+  --void: #c42b1c; /* failures, VOID stamp, danger */
+  --void-bg: #fbe8e5;
+  --gift: #9a5200; /* "uses up its gift link" and other warnings */
+  --gift-bg: #fff0d9;
+  --brand: #d9381e; /* wordmark speed stripes and the icon only */
+  --brass: #e3ae3a; /* rail focus ring */
+  --focus: #1d5bd8;
+  --signed-in: #8ee0b5; /* status dot on the rail */
+  --signed-out: #ff8a7a;
+  --scrim: rgba(11, 18, 41, 0.55);
+  --shadow-lift: 0 18px 48px rgba(11, 18, 41, 0.28);
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Libre Franklin', system-ui, sans-serif;
+  --font-data: 'Courier Prime', 'Courier New', monospace;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --fs-h1: 38px;
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
   --s5: 24px;
   --s6: 32px;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --fs-sm: 13px;
-  --fs-md: 14px;
-  --fs-lg: 16px;
-  --fs-xl: 20px;
-  --fs-xxl: 28px;
+  --s7: 48px;
+  --radius: 2px;
+  --row-h: 44px;
+  --notch: 10px;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15171a;
-    --surface: #1e2125;
-    --surface-2: #262a2f;
-    --text: #ecedee;
-    --text-muted: #9ba1a6;
-    --border: #33383e;
-    --accent: #4cc79a;
-    --accent-hover: #6bd6ae;
-    --accent-text: #0e1f18;
-    --warn: #e6b04a;
-    --warn-bg: #3a2e14;
-    --danger: #f2867e;
-    --danger-bg: #3b1e1c;
-    --focus: #7aa7ff;
+    /* dark: the wallet at night */
+    --ground: #0b1229;
+    --sheet: #141d3a;
+    --tab: #1c2648;
+    --tab-soft: #18213f;
+    --ink: #eef0f7;
+    --ink-2: #a9b1cc;
+    --rule: #8e9bc9;
+    --rule-soft: #2e3a63;
+    --rail: #121c44;
+    --rail-2: #1b2757;
+    --on-rail: #ffffff;
+    --on-rail-2: #a9b1cc;
+    --primary-bg: #dce2f5;
+    --primary-bg-hover: #ffffff;
+    --primary-fg: #0b1229;
+    --carbon: #b7a2f2;
+    --carbon-copy: #2a2150;
+    --void: #ff8a7a;
+    --void-bg: #3a1714;
+    --gift: #f4b860;
+    --gift-bg: #3a2a10;
+    --focus: #8fb0ff;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow-lift: 0 18px 48px rgba(0, 0, 0, 0.5);
   }
 }
 html,
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 400 var(--fs-md)/1.45 var(--font);
+  height: 100%;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 var(--fs-md)/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+::selection {
+  background: var(--carbon);
+  color: var(--sheet);
+}
+input,
+select,
+textarea {
+  caret-color: var(--carbon);
+}
+* {
+  scrollbar-color: var(--rule-soft) transparent;
 }
 @media (prefers-reduced-motion: reduce) {
   * {

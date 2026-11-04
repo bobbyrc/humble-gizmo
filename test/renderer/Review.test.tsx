@@ -64,7 +64,7 @@ describe('Review', () => {
     const items = Array.from({ length: 2000 }, (_, i) => item(i))
     mockGizmo({ buildReview: vi.fn(async () => items) })
     renderReview()
-    expect(await screen.findByText('Ready to redeem 2000 games')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Ready to redeem 2000 games' })).toBeTruthy()
     const rows = screen.getAllByRole('listitem')
     expect(rows.length).toBeGreaterThan(0)
     expect(rows.length).toBeLessThan(100)
@@ -101,7 +101,7 @@ describe('Review', () => {
     expect(screen.getByText('duplicate')).toBeTruthy()
   })
 
-  it('collapses other groups and shows hint, matches pill and untick all', async () => {
+  it('shows only the selected group and shows hint, matches pill and untick all', async () => {
     mockGizmo({
       buildReview: vi.fn(async () => [
         item(1),
@@ -112,12 +112,13 @@ describe('Review', () => {
     renderReview()
     await screen.findByText('Game 1')
     expect(screen.queryByText('Game 2')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /^Might already own/ }))
     expect(screen.getByText('check these')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /^Might already own/ }))
     expect(screen.getByText('matches Game Two')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /^Failed before/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Failed before/ }))
     expect(screen.getByText("won't work")).toBeTruthy()
-    fireEvent.click(screen.getAllByText('Untick all')[0])
+    fireEvent.click(screen.getByRole('tab', { name: /^Will redeem/ }))
+    fireEvent.click(screen.getByText('Untick all'))
     expect(screen.getByRole('button', { name: 'Redeem 0' }).hasAttribute('disabled')).toBe(true)
   })
 
@@ -137,6 +138,7 @@ describe('Review', () => {
     mockGizmo()
     renderReview()
     expect(await screen.findByText("Nothing new to redeem. You're all caught up.")).toBeTruthy()
+    expect(screen.getByText('All caught up')).toBeTruthy()
   })
 
   it('shows a Retry banner on a generic error', async () => {
@@ -219,9 +221,10 @@ describe('Review', () => {
     })
     renderReview()
     await screen.findByRole('button', { name: 'Redeem 2' })
-    fireEvent.click(screen.getByRole('button', { name: /^You already own/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /^You already own/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Untick all You already own' }))
     expect(screen.getByRole('button', { name: 'Redeem 1' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: /^Will redeem/ }))
     expect((screen.getByLabelText('Game 1') as HTMLInputElement).checked).toBe(true)
   })
 
@@ -245,6 +248,49 @@ describe('Review', () => {
     await screen.findByRole('button', { name: 'Redeem 1' })
     fireEvent.click(screen.getByRole('button', { name: 'Untick all Will redeem' }))
     expect(screen.queryByRole('button', { name: 'Untick all Will redeem' })).toBeNull()
+  })
+
+  it('lists each non-empty group as a tab with its count', async () => {
+    mockGizmo({
+      buildReview: vi.fn(async () => [
+        item(1),
+        item(2),
+        item(3, {}, 'maybe_owned'),
+        item(4, {}, 'done_before')
+      ])
+    })
+    renderReview()
+    await screen.findByText('Game 1')
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'Will redeem 2',
+      'Might already own 1',
+      'Already done in an earlier run 1'
+    ])
+    expect(screen.getByRole('tablist', { name: 'Key groups' })).toBeTruthy()
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('keeps an untick when switching tabs and back', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1), item(2), item(3, {}, 'owned')]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 2' })
+    fireEvent.click(screen.getByLabelText('Game 1'))
+    fireEvent.click(screen.getByRole('tab', { name: /^You already own/ }))
+    expect(screen.queryByLabelText('Game 1')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /^Will redeem/ }))
+    expect((screen.getByLabelText('Game 1') as HTMLInputElement).checked).toBe(false)
+    expect(screen.getByRole('button', { name: 'Redeem 1' })).toBeTruthy()
+  })
+
+  it('shows bundle and purchase year in the From cell, or a dash', async () => {
+    const a = item(1)
+    a.key.bundle = 'Humble Indie Bundle 19'
+    a.key.purchased = '2018-03-06T18:00:23.123'
+    mockGizmo({ buildReview: vi.fn(async () => [a, item(2)]) })
+    renderReview()
+    expect(await screen.findByText('Humble Indie Bundle 19 · 2018')).toBeTruthy()
+    expect(screen.getByText('—')).toBeTruthy()
   })
 
   it('marks rows with set size and position', async () => {
@@ -354,11 +400,11 @@ describe('Review refresh and reattach', () => {
     const g = mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
     setFreshLibrary({ keys: 1, steamKeys: 1, failedOrders: 0 })
     renderReview()
-    expect(await screen.findByText('Ready to redeem 1 games')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Ready to redeem 1 games' })).toBeTruthy()
     expect(g.loadLibrary).not.toHaveBeenCalled()
     cleanup()
     renderReview()
-    expect(await screen.findByText('Ready to redeem 1 games')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Ready to redeem 1 games' })).toBeTruthy()
     expect(g.loadLibrary).toHaveBeenCalledTimes(1)
   })
 })

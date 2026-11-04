@@ -15,6 +15,8 @@ export default defineConfig({
       }
     },
     define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version) },
+    // The CSP (src/renderer/index.html) blocks data: images, so assets must stay files.
+    build: { assetsInlineLimit: 0 },
     plugins: [react()]
   }
 })

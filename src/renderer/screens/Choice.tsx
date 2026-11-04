@@ -73,7 +73,7 @@ export default function Choice(): React.JSX.Element {
 
   return (
     <div>
-      <div className="choice-header">
+      <div className="screen-header">
         <h1>Humble Choice</h1>
       </div>
       {result?.kind === 'ok' && (
@@ -96,9 +96,17 @@ export default function Choice(): React.JSX.Element {
       {months === null ? (
         <Spinner label="Loading your Humble Choice months…" />
       ) : months.length === 0 ? (
-        loadError === null && <p className="choice-muted">No Humble Choice picks left to make.</p>
+        loadError === null && (
+          <div className="sheet choice-empty">
+            <p>No Humble Choice picks left to make.</p>
+          </div>
+        )
       ) : (
-        months.map((m) => <MonthCard key={m.gamekey} month={m} busy={busy} onClaim={claim} />)
+        <div className="choice-months">
+          {months.map((m) => (
+            <MonthCard key={m.gamekey} month={m} busy={busy} onClaim={claim} />
+          ))}
+        </div>
       )}
     </div>
   )

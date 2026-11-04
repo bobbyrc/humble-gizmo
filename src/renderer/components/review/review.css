@@ -1,37 +1,107 @@
-.screen-pad {
-  padding: var(--s5);
-  height: 100%;
-  box-sizing: border-box;
-  overflow-y: auto;
-}
 /* Review adds its own top padding on top of .content's, which pushes its heading
-   ~20px below the other screens. Drop the extra so the heading lines up. */
+   ~20px below the other screens. Drop the extra so the heading lines up.
+   The screen fills .content so the sheet scrolls inside itself and ends ~28px above the window
+   bottom (.content pads 40px; the extra 12px of height reclaims that much of it). */
 .review-screen {
   padding-top: 0;
+  height: calc(100% + 12px);
+  display: flex;
+  flex-direction: column;
+}
+.review-screen > .tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.review-screen .tabs-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+/* Bottom notch: on the tab panel, whose bottom edge is the sheet's bottom edge. */
+.review-screen .tabs-panel::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 55px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ground);
+  pointer-events: none;
+  z-index: 2;
+}
+/* The coupon sheet: the first 64px is the tear-off stub, the rest is the sheet. */
+.review-sheet {
+  --stub: color-mix(in srgb, var(--carbon-copy) 60%, var(--sheet));
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to right, var(--stub) 0 64px, var(--sheet) 64px);
+}
+.review-sheet::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 64px;
+  border-left: 1px dashed var(--ink-2);
+  pointer-events: none;
+  z-index: 1;
+}
+/* Top notch: cuts into the panel's navy top rule. */
+.review-sheet::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 55px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ground);
+  pointer-events: none;
+  z-index: 2;
+}
+.review-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px dashed var(--rule-soft);
+  background: transparent;
+  font-size: 14px;
+  color: var(--ink-2);
 }
 .review-untick {
   white-space: nowrap;
+  margin-left: auto;
 }
-.screen-header {
-  display: flex;
+.review-cols,
+.review-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 260px 240px;
   align-items: center;
-  gap: var(--s3);
-  flex-wrap: wrap;
-  margin-bottom: var(--s4);
+  background: transparent;
 }
-.screen-header h1 {
-  font-size: var(--fs-xl);
-  margin: 0;
-  margin-right: auto;
-}
-.screen-header-actions {
-  display: flex;
-  gap: var(--s2);
+/* At the 900px minimum window the fixed columns would squeeze the name to nothing. */
+@media (max-width: 1100px) {
+  .review-cols,
+  .review-row {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 170px;
+  }
 }
 .vrows {
   position: relative;
-  max-height: 60vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  background: transparent;
 }
 .vrows-spacer {
   position: relative;
@@ -42,43 +112,56 @@
   right: 0;
   height: var(--row-h);
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  padding: 0 var(--s3);
-  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  border-bottom: 1px dashed var(--rule-soft);
 }
-.review-row-name {
-  flex: 1;
+.review-row:hover {
+  background: linear-gradient(to right, transparent 0 64px, var(--tab-soft) 64px);
+}
+.review-row .checkbox {
+  display: contents;
+}
+.review-row .checkbox label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 15px/1.3 var(--font-body);
+}
+/* Game column starts on the tear line at 64px; inset its text so the line does not run through it. */
+.review-cols > :nth-child(2),
+.review-row .checkbox label {
+  padding-left: 16px;
+}
+.review-row .checkbox input:disabled + label {
+  color: var(--ink-2);
+}
+.review-row-from {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.review-row-muted label {
-  color: var(--text-muted);
-}
 .review-row-pills {
   display: flex;
-  gap: var(--s1);
-  flex: none;
-}
-.run-list {
-  list-style: none;
-  margin: var(--s4) 0 0;
-  padding: 0;
-}
-.run-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s2);
-  min-height: var(--row-h);
-  border-bottom: 1px solid var(--border);
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .review-empty {
-  color: var(--text-muted);
+  margin: 0;
+  color: var(--ink-2);
 }
-.run-attempt {
-  color: var(--text-muted);
+.review-sheet-empty {
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+.review-sheet-loading {
+  padding: 32px;
 }

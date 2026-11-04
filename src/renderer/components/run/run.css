@@ -1,0 +1,73 @@
+/* Run screen: tallies in the header, then the live list of outcomes. */
+
+.run-header {
+  flex-wrap: wrap;
+}
+.run-header > .btn {
+  margin-left: auto;
+}
+
+.run-tallies {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.tally {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s2);
+  border: 1.5px solid var(--rule-soft);
+  background: var(--sheet);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font: 600 13px/1.3 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.tally .num {
+  font: 700 22px/1 var(--font-data);
+}
+.tally-added .num {
+  color: var(--carbon);
+}
+.tally-owned .num {
+  color: var(--ink);
+}
+.tally-errors .num {
+  color: var(--void);
+}
+
+.run-list {
+  margin: var(--s4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.run-list:empty {
+  border-top: 0;
+}
+.run-list .run-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  align-items: center;
+  gap: var(--s2);
+}
+.run-row > .run-name {
+  min-width: 0;
+  font-size: var(--fs-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-row > .stamp {
+  justify-self: end;
+}
+
+.run-attempt {
+  margin-left: var(--s2);
+  font: 400 13px/1.4 var(--font-data);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}

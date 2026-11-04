@@ -5,6 +5,7 @@ import { mockGizmo } from './mockGizmo'
 import { NavProvider, useNav } from '../../src/renderer/nav'
 import Run from '../../src/renderer/screens/Run'
 import { beginRunSession, resetRunSession, setLastReview } from '../../src/renderer/runState'
+import { CODE_LABELS } from '../../src/core/steamCodes'
 
 afterEach(cleanup)
 
@@ -53,9 +54,26 @@ describe('Run', () => {
     expect(rows[0].textContent).toContain('region locked')
     expect(rows[2].textContent).toContain('Alpha')
     expect(rows[2].textContent).toContain('added')
-    expect(screen.getByText('1 added')).toBeTruthy()
-    expect(screen.getByText('1 already owned')).toBeTruthy()
-    expect(screen.getByText('1 errors')).toBeTruthy()
+    expect(document.querySelector('.tally-added')?.textContent).toBe('1 added')
+    expect(document.querySelector('.tally-owned')?.textContent).toBe('1 already owned')
+    expect(document.querySelector('.tally-errors')?.textContent).toBe('1 error')
+  })
+
+  it('uses "error" in the tally and banner when a finished run has one error', () => {
+    const { emit } = setup()
+    emit({ type: 'finished', summary: { redeemed: 0, owned: 0, errors: 1, remaining: 0 } })
+    expect(document.querySelector('.tally-errors')?.textContent).toBe('1 error')
+    expect(screen.getByText('Done — 0 added, 0 already owned, 1 error')).toBeTruthy()
+  })
+
+  it('renders outcomes as stamps by tone', () => {
+    setLastReview([{ key: { id: 'a', name: 'Alpha' } } as ReviewItem])
+    const { emit } = setup()
+    emit({ type: 'key-done', id: 'a', outcome: 'redeemed', code: 0 })
+    emit({ type: 'key-done', id: 'b', outcome: 'error', code: 14 })
+    expect(document.querySelector('.stamp-redeemed')?.textContent).toBe('added')
+    const voided = document.querySelector('.stamp-void')
+    expect(voided?.textContent).toBe(CODE_LABELS[14])
   })
 
   it('shows the rate limit message with the local resume time', () => {
@@ -103,7 +121,7 @@ describe('Run', () => {
   it('shows Done when finished', () => {
     const { emit } = setup()
     emit({ type: 'finished', summary: { redeemed: 3, owned: 2, errors: 1, remaining: 0 } })
-    expect(screen.getByText('Done — 3 added, 2 already owned, 1 errors')).toBeTruthy()
+    expect(screen.getByText('Done — 3 added, 2 already owned, 1 error')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Done' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Back to review' }))
     expect(screen.getByTestId('where').textContent).toBe('review')
@@ -134,7 +152,7 @@ describe('Run', () => {
       </NavProvider>
     )
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
-    expect(screen.getByText('1 added')).toBeTruthy()
+    expect(document.querySelector('.tally-added')?.textContent).toBe('1 added')
     emit({ type: 'key-done', id: 'b', outcome: 'owned', code: 9 })
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
   })

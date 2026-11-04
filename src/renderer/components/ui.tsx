@@ -81,49 +81,75 @@ export function Banner({
   )
 }
 
-export function Section({
+export function Stamp({
+  tone,
+  children
+}: {
+  tone: 'redeemed' | 'owned' | 'void'
+  children: React.ReactNode
+}): React.JSX.Element {
+  return <span className={`stamp stamp-${tone}`}>{children}</span>
+}
+
+export type TabSpec = { id: string; label: string; count: number; tone?: 'warn' | 'danger' }
+
+export function Tabs({
   label,
-  count,
-  hint,
-  defaultOpen = false,
-  actions,
+  tabs,
+  active,
+  onChange,
   children
 }: {
   label: string
-  count: number
-  hint?: string
-  defaultOpen?: boolean
-  actions?: React.ReactNode
+  tabs: TabSpec[]
+  active: string
+  onChange: (id: string) => void
   children: React.ReactNode
 }): React.JSX.Element {
-  const [open, setOpen] = useState(defaultOpen)
-  const bodyId = useId()
-  // The header is a <button>, so interactive actions cannot nest inside it; they sit beside it.
+  const base = useId()
+  const refs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const tabId = (id: string): string => `${base}-tab-${id}`
+  const panelId = `${base}-panel`
+
+  function onKeyDown(e: React.KeyboardEvent): void {
+    const i = tabs.findIndex((t) => t.id === active)
+    let next: number
+    if (e.key === 'ArrowRight') next = (i + 1) % tabs.length
+    else if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = tabs.length - 1
+    else return
+    e.preventDefault()
+    onChange(tabs[next].id)
+    refs.current[tabs[next].id]?.focus()
+  }
+
   return (
-    <section className="section">
-      <div className="section-header">
-        <button
-          type="button"
-          className="section-head"
-          aria-expanded={open}
-          aria-controls={open ? bodyId : undefined}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <span className="section-chevron" aria-hidden="true">
-            ▸
-          </span>
-          <span className="section-label">{label}</span>
-          <span className="section-count">{count}</span>
-          {hint && <span className="section-hint">{hint}</span>}
-        </button>
-        {actions && <div className="section-actions">{actions}</div>}
+    <div className="tabs">
+      <div role="tablist" aria-label={label} className="tabs-list" onKeyDown={onKeyDown}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            ref={(el) => {
+              refs.current[t.id] = el
+            }}
+            type="button"
+            role="tab"
+            id={tabId(t.id)}
+            aria-selected={t.id === active}
+            aria-controls={panelId}
+            tabIndex={t.id === active ? 0 : -1}
+            onClick={() => onChange(t.id)}
+          >
+            <span className="tabs-label">{t.label}</span>{' '}
+            <span className={`tabs-count${t.tone ? ` tabs-count-${t.tone}` : ''}`}>{t.count}</span>
+          </button>
+        ))}
       </div>
-      {open && (
-        <div id={bodyId} className="section-body">
-          {children}
-        </div>
-      )}
-    </section>
+      <div role="tabpanel" id={panelId} aria-labelledby={tabId(active)} className="tabs-panel">
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -198,7 +224,7 @@ function OpenDialog({
     <div className="scrim">
       <div
         ref={dialogRef}
-        className="dialog"
+        className={tone === 'danger' ? 'dialog dialog-danger' : 'dialog'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

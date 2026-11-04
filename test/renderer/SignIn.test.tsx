@@ -54,6 +54,16 @@ describe('SignIn', () => {
     await act(async () => finish(true))
   })
 
+  it('shows the Signed in stamp on a signed-in card and no sign-in button there', async () => {
+    mockGizmo({ status: vi.fn(async () => ({ humble: true, steam: false })) })
+    renderSignIn()
+    const humble = await screen.findByRole('region', { name: 'Humble Bundle' })
+    expect(humble.textContent).toContain('Signed in')
+    expect(humble.textContent).not.toContain('✓')
+    expect(signInButton('Humble Bundle')).toBeUndefined()
+    expect(signInButton('Steam').disabled).toBe(false)
+  })
+
   it('re-checks status after sign in and loads the library once when both are in', async () => {
     const status = vi.fn(async () => out)
     const g = mockGizmo({ status })

@@ -3,7 +3,7 @@ import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
 import { GROUP_LABELS } from '../../shared/copy'
 import type { ReviewGroup, ReviewItem } from '../../shared/types'
-import { Banner, Button, Section, Spinner } from '../components/ui'
+import { Banner, Button, Spinner, Stamp, Tabs } from '../components/ui'
 import { VirtualRows } from '../components/review/VirtualRows'
 import { ReviewRow } from '../components/review/ReviewRow'
 import ErrorBanner from '../components/ErrorBanner'
@@ -73,6 +73,14 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
     return map
   }, [items])
 
+  const present = GROUP_ORDER.filter((g) => byGroup.has(g))
+  const [selected, setSelected] = useState<ReviewGroup>('will_redeem')
+  const group = present.includes(selected)
+    ? selected
+    : present.includes('will_redeem')
+      ? 'will_redeem'
+      : present[0]
+
   const tickedIds = items.filter((i) => i.tickable && ticks[i.key.id]).map((i) => i.key.id)
   const n = tickedIds.length
 
@@ -105,7 +113,9 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   if (load.status === 'loading') {
     return (
       <div className="screen-pad">
-        <Spinner label="Loading your library…" />
+        <div className="sheet review-sheet-loading">
+          <Spinner label="Loading your library…" />
+        </div>
       </div>
     )
   }
@@ -120,7 +130,15 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   return (
     <div className="screen-pad review-screen">
       <div className="screen-header">
-        <h1>{items.length === 0 ? 'Redeem' : `Ready to redeem ${n} games`}</h1>
+        <h1>
+          {items.length === 0 ? (
+            'Redeem'
+          ) : (
+            <>
+              Ready to redeem <span className="num">{n}</span> games
+            </>
+          )}
+        </h1>
         <div className="screen-header-actions">
           <Button variant="secondary" onClick={retry}>
             Refresh
@@ -137,47 +155,66 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
       )}
       {runError !== null && <ErrorBanner error={runError} onRetry={redeem} />}
       {items.length === 0 && (
-        <p className="review-empty">Nothing new to redeem. You&apos;re all caught up.</p>
+        <div className="sheet review-sheet-empty">
+          <Stamp tone="redeemed">All caught up</Stamp>
+          <p className="review-empty">Nothing new to redeem. You&apos;re all caught up.</p>
+        </div>
       )}
-      {GROUP_ORDER.map((group) => {
-        const groupItems = byGroup.get(group)
-        if (!groupItems || groupItems.length === 0) return null
-        const anyTicked = groupItems.some((i) => ticks[i.key.id])
-        return (
-          <Section
-            key={group}
-            label={GROUP_LABELS[group]}
-            count={groupItems.length}
-            hint={HINTS[group]}
-            defaultOpen={group === 'will_redeem'}
-            actions={
-              anyTicked && (
-                <button
-                  type="button"
-                  className="btn btn-link review-untick"
-                  aria-label={`Untick all ${GROUP_LABELS[group]}`}
-                  onClick={() => untickAll(group)}
-                >
-                  Untick all
-                </button>
-              )
-            }
-          >
-            <VirtualRows
-              items={groupItems}
-              itemKey={(i) => i.key.id}
-              viewportHeight={viewportHeight}
-              renderRow={(i) => (
-                <ReviewRow
-                  item={i}
-                  ticked={ticks[i.key.id] ?? false}
-                  onToggle={(checked) => setTicks((prev) => ({ ...prev, [i.key.id]: checked }))}
+      {items.length > 0 && (
+        <Tabs
+          label="Key groups"
+          active={group}
+          onChange={(id) => setSelected(id as ReviewGroup)}
+          tabs={present.map((g) => ({
+            id: g,
+            label: GROUP_LABELS[g],
+            count: byGroup.get(g)?.length ?? 0,
+            tone: g === 'maybe_owned' ? 'warn' : g === 'failed_before' ? 'danger' : undefined
+          }))}
+        >
+          {(() => {
+            const groupItems = byGroup.get(group) ?? []
+            const anyTicked = groupItems.some((i) => ticks[i.key.id])
+            return (
+              <div className="review-sheet">
+                {(HINTS[group] || anyTicked) && (
+                  <div className="review-hint">
+                    <span>{HINTS[group]}</span>
+                    {anyTicked && (
+                      <button
+                        type="button"
+                        className="btn btn-link review-untick"
+                        aria-label={`Untick all ${GROUP_LABELS[group]}`}
+                        onClick={() => untickAll(group)}
+                      >
+                        Untick all
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="sheet-cols review-cols">
+                  <span />
+                  <span>Game</span>
+                  <span>From</span>
+                  <span>Note</span>
+                </div>
+                <VirtualRows
+                  items={groupItems}
+                  itemKey={(i) => i.key.id}
+                  viewportHeight={viewportHeight}
+                  renderRow={(i) => (
+                    <ReviewRow
+                      item={i}
+                      ticked={ticks[i.key.id] ?? false}
+                      onToggle={(checked) => setTicks((prev) => ({ ...prev, [i.key.id]: checked }))}
+                    />
+                  )}
                 />
-              )}
-            />
-          </Section>
-        )
-      })}
+              </div>
+            )
+          })()}
+        </Tabs>
+      )}
     </div>
   )
 }

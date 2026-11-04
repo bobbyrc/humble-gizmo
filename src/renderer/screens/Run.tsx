@@ -4,9 +4,9 @@ import { useNav } from '../nav'
 import { rateLimitMessage } from '../../shared/copy'
 import { CODE_LABELS } from '../../core/steamCodes'
 import type { Outcome, RunEvent, RunSummary } from '../../shared/types'
-import { Banner, Button, Pill } from '../components/ui'
+import { Banner, Button, Stamp } from '../components/ui'
 import { getRunEvents, nameFor, subscribeRun } from '../runState'
-import '../components/review/review.css'
+import '../components/run/run.css'
 
 type Finished = { id: string; outcome: Exclude<Outcome, 'pending'>; code: number | null }
 type Status =
@@ -16,11 +16,13 @@ type Status =
   | { kind: 'finished'; summary: RunSummary }
 
 function OutcomePill({ f }: { f: Finished }): React.JSX.Element {
-  if (f.outcome === 'redeemed') return <Pill tone="ok">added</Pill>
-  if (f.outcome === 'owned') return <Pill tone="muted">already owned</Pill>
+  if (f.outcome === 'redeemed') return <Stamp tone="redeemed">added</Stamp>
+  if (f.outcome === 'owned') return <Stamp tone="owned">already owned</Stamp>
   const label = (f.code !== null && CODE_LABELS[f.code]) || 'error'
-  return <Pill tone="danger">{label}</Pill>
+  return <Stamp tone="void">{label}</Stamp>
 }
+
+const errorWord = (n: number): string => (n === 1 ? 'error' : 'errors')
 
 type RunState = { rows: Finished[]; status: Status }
 
@@ -98,7 +100,7 @@ export default function Run(): React.JSX.Element {
         return (
           <Banner tone="ok" action={{ label: 'Back to review', onClick: () => go('review') }}>
             Done — {status.summary.redeemed} added, {status.summary.owned} already owned,{' '}
-            {status.summary.errors} errors
+            {status.summary.errors} {errorWord(status.summary.errors)}
           </Banner>
         )
       case 'stopped':
@@ -133,11 +135,19 @@ export default function Run(): React.JSX.Element {
 
   return (
     <div className="screen-pad">
-      <div className="screen-header">
+      <div className="screen-header run-header">
         <h1>{heading}</h1>
-        <Pill tone="ok">{counts.redeemed} added</Pill>
-        <Pill tone="muted">{counts.owned} already owned</Pill>
-        <Pill tone="danger">{counts.errors} errors</Pill>
+        <div className="run-tallies">
+          <span className="tally tally-added">
+            <span className="num">{counts.redeemed}</span> added
+          </span>
+          <span className="tally tally-owned">
+            <span className="num">{counts.owned}</span> already owned
+          </span>
+          <span className="tally tally-errors">
+            <span className="num">{counts.errors}</span> {errorWord(counts.errors)}
+          </span>
+        </div>
         {active && (
           <Button variant="secondary" onClick={() => void gizmo.stopRun()}>
             Stop
@@ -145,10 +155,10 @@ export default function Run(): React.JSX.Element {
         )}
       </div>
       {banner()}
-      <ul className="run-list" aria-live="polite">
+      <ul className="run-list sheet" aria-live="polite">
         {rows.map((f, i) => (
-          <li key={`${f.id}-${rows.length - i}`} className="run-row">
-            <span>{nameFor(f.id)}</span>
+          <li key={`${f.id}-${rows.length - i}`} className="run-row sheet-row">
+            <span className="run-name">{nameFor(f.id)}</span>
             <OutcomePill f={f} />
           </li>
         ))}
