@@ -266,6 +266,8 @@ Shared by Review, Run, Choice, History and Settings:
   wrapper `display: contents` inside rows so the input and label fall into the first two columns.
 - **The stub:** the sheet's first 64px (row padding + tick column) is the coupon's tear-off stub, tinted `color-mix(in srgb, var(--carbon-copy) 60%, var(--sheet))`, separated from the rest by a full-height 1px dashed `--ink-2` tear line, with a 14px semicircle notch (filled `--ground`) cut where the tear line meets the sheet's top and bottom edges.
 - Below 1100px the grid becomes `44px minmax(0,1fr) minmax(0,1fr) 170px`.
+- **Resizable columns:** From and Note have user-set pixel widths (`--col-from`, `--col-note` on `.review-sheet`; defaults 260/240, 200/180 below 1100px). Dividers sit on the left edge of the From and Note head cells (`role="separator"`, ArrowLeft/Right 16px, double-click or Home resets); clamps From 120–480, Note 140–360, Game ≥ 200. Widths persist in localStorage `gizmo.review.columns`.
+- The Note column is right-aligned (head and tags).
 - Virtualisation unchanged (`ROW_HEIGHT` 44).
 - Empty (no items at all): a `.sheet` with centred content, padding 48px: a `Stamp
 tone="redeemed"` reading "All caught up", then the existing sentence "Nothing new to redeem.
@@ -333,8 +335,7 @@ className="num">N</span> label</span>`: 1.5px solid `--rule-soft` border, bg `--
 
 - H1 "Sign in to get started", intro paragraph `--ink-2`.
 - Two service coupons side by side (gap 16px): each bg `--ground`, border-top 2px solid
-  `--rule`, padding 16px; name as H2 (20px); status tag; Sign in (primary, full width). When
-  signed in, the "Signed in ✓" pill becomes `Stamp tone="redeemed"` reading "Signed in".
+  `--rule`, padding 16px; name as H2 (20px); status tag; Sign in (primary, full width). When signed in, the button is replaced by a large `Stamp tone="redeemed"` reading "Signed in" (20px, 3px rule), centred in the card's remaining space.
 - Result area as today.
 
 ## App icon

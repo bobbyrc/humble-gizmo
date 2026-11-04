@@ -408,3 +408,118 @@ describe('Review refresh and reattach', () => {
     expect(g.loadLibrary).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('Review resizable columns', () => {
+  const KEY = 'gizmo.review.columns'
+
+  function sheet(): HTMLElement {
+    return document.querySelector('.review-sheet') as HTMLElement
+  }
+
+  afterEach(() => {
+    localStorage.clear()
+    delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth
+  })
+
+  it('renders a From and a Note divider with their aria values', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    const from = screen.getByRole('separator', { name: 'Resize From column' })
+    const note = screen.getByRole('separator', { name: 'Resize Note column' })
+    expect(from.getAttribute('aria-valuenow')).toBe('260')
+    expect(from.getAttribute('aria-valuemin')).toBe('120')
+    expect(from.getAttribute('aria-valuemax')).toBe('480')
+    expect(note.getAttribute('aria-valuenow')).toBe('240')
+    expect(note.getAttribute('aria-valuemin')).toBe('140')
+    expect(note.getAttribute('aria-valuemax')).toBe('360')
+    expect(from.getAttribute('tabindex')).toBe('0')
+  })
+
+  it('ArrowLeft widens From by 16px and stores the width', async () => {
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    const from = screen.getByRole('separator', { name: 'Resize From column' })
+    fireEvent.keyDown(from, { key: 'ArrowLeft' })
+    expect(from.getAttribute('aria-valuenow')).toBe('276')
+    expect(sheet().style.getPropertyValue('--col-from')).toBe('276px')
+    expect(JSON.parse(localStorage.getItem(KEY) ?? 'null')).toEqual({ from: 276, note: 240 })
+  })
+
+  it('Home resets both columns and removes the stored widths', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ from: 300, note: 200 }))
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(sheet().style.getPropertyValue('--col-from')).toBe('300px')
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize Note column' }), {
+      key: 'Home'
+    })
+    expect(sheet().style.getPropertyValue('--col-from')).toBe('')
+    expect(sheet().style.getPropertyValue('--col-note')).toBe('')
+    expect(localStorage.getItem(KEY)).toBeNull()
+    expect(
+      screen.getByRole('separator', { name: 'Resize Note column' }).getAttribute('aria-valuenow')
+    ).toBe('240')
+  })
+
+  it('restores stored widths on mount', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ from: 350, note: 180 }))
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(
+      screen.getByRole('separator', { name: 'Resize From column' }).getAttribute('aria-valuenow')
+    ).toBe('350')
+    expect(
+      screen.getByRole('separator', { name: 'Resize Note column' }).getAttribute('aria-valuenow')
+    ).toBe('180')
+  })
+
+  it('falls back to defaults on a malformed stored value', async () => {
+    localStorage.setItem(KEY, '{not json')
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(
+      screen.getByRole('separator', { name: 'Resize From column' }).getAttribute('aria-valuenow')
+    ).toBe('260')
+    expect(sheet().style.getPropertyValue('--col-from')).toBe('')
+  })
+
+  it('ignores stored values that are not numbers', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ from: 'wide', note: null }))
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    expect(sheet().style.getPropertyValue('--col-from')).toBe('')
+  })
+
+  it('falls back to defaults when localStorage throws', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    expect(await screen.findByRole('button', { name: 'Redeem 1' })).toBeTruthy()
+    expect(
+      screen.getByRole('separator', { name: 'Resize From column' }).getAttribute('aria-valuenow')
+    ).toBe('260')
+    spy.mockRestore()
+  })
+
+  it('keeps Game at 200px or more when From grows', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 700
+    })
+    mockGizmo({ buildReview: vi.fn(async () => [item(1)]) })
+    renderReview()
+    await screen.findByRole('button', { name: 'Redeem 1' })
+    const from = screen.getByRole('separator', { name: 'Resize From column' })
+    // 700 - 104 - 240 (Note) - 200 (Game) leaves at most 156px for From.
+    fireEvent.keyDown(from, { key: 'ArrowLeft' })
+    expect(from.getAttribute('aria-valuenow')).toBe('156')
+  })
+})

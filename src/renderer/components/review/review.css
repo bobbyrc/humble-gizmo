@@ -37,6 +37,8 @@
 /* The coupon sheet: the first 64px is the tear-off stub, the rest is the sheet. */
 .review-sheet {
   --stub: color-mix(in srgb, var(--carbon-copy) 60%, var(--sheet));
+  --col-from: 260px;
+  --col-note: 240px;
   position: relative;
   flex: 1;
   min-height: 0;
@@ -85,16 +87,54 @@
 .review-cols,
 .review-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 260px 240px;
+  grid-template-columns: 44px minmax(200px, 1fr) minmax(0, var(--col-from)) minmax(
+      0,
+      var(--col-note)
+    );
   align-items: center;
   background: transparent;
 }
 /* At the 900px minimum window the fixed columns would squeeze the name to nothing. */
 @media (max-width: 1100px) {
-  .review-cols,
-  .review-row {
-    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 170px;
+  .review-sheet {
+    --col-from: 160px;
+    --col-note: 150px;
   }
+}
+/* Head cells anchor their column divider. */
+.review-cols > span {
+  position: relative;
+}
+/* Dividers: a 9px hit area on the cell's left edge, drawing a 1px line at its centre. */
+.review-col-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.review-col-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: var(--rule-soft);
+}
+.review-col-resizer:focus {
+  outline: none;
+}
+.review-col-resizer:hover::before,
+.review-col-resizer:focus-visible::before,
+.review-col-resizer.is-dragging::before {
+  background: var(--ink);
+}
+/* The Note column reads right to left: its head and its tags align to the right edge. */
+.review-cols > :last-child {
+  text-align: right;
 }
 .vrows {
   position: relative;
@@ -149,6 +189,9 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+}
+.review-row-pills > :first-child {
+  margin-left: auto;
 }
 .review-empty {
   margin: 0;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { gizmo } from '../gizmo'
 import { useNav } from '../nav'
 import { GROUP_LABELS } from '../../shared/copy'
@@ -6,6 +6,7 @@ import type { ReviewGroup, ReviewItem } from '../../shared/types'
 import { Banner, Button, Spinner, Stamp, Tabs } from '../components/ui'
 import { VirtualRows } from '../components/review/VirtualRows'
 import { ReviewRow } from '../components/review/ReviewRow'
+import { ColumnResizer } from '../components/review/ColumnResizer'
 import ErrorBanner from '../components/ErrorBanner'
 import { beginRunSession, isRunActive, setLastReview, takeFreshLibrary } from '../runState'
 import '../components/review/review.css'
@@ -24,6 +25,63 @@ const HINTS: Partial<Record<ReviewGroup, string>> = {
   failed_before: 'tick to retry'
 }
 
+// Column widths in px. Defaults live in review.css; these mirror them, and the media query
+// below mirrors review.css's narrow-window block.
+const DEFAULT_COLS = { from: 260, note: 240 }
+const NARROW_COLS = { from: 160, note: 150 }
+const NARROW_QUERY = '(max-width: 1100px)'
+const FROM_RANGE = { min: 120, max: 480 }
+const NOTE_RANGE = { min: 140, max: 360 }
+const GAME_MIN = 200
+// The stub (64px) plus the right padding allowance (40px) that Game cannot use.
+const FIXED_CHROME = 64 + 40
+const COLS_KEY = 'gizmo.review.columns'
+
+type Cols = { from: number; note: number }
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v))
+}
+
+function isNarrow(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia(NARROW_QUERY).matches
+}
+
+// Storage can be blocked or hold junk; either way the screen falls back to the CSS defaults.
+function readStoredCols(): Cols | null {
+  try {
+    const raw = window.localStorage.getItem(COLS_KEY)
+    if (raw === null) return null
+    const v: unknown = JSON.parse(raw)
+    if (typeof v !== 'object' || v === null) return null
+    const { from, note } = v as Record<string, unknown>
+    if (typeof from !== 'number' || typeof note !== 'number') return null
+    if (!Number.isFinite(from) || !Number.isFinite(note)) return null
+    return {
+      from: clamp(from, FROM_RANGE.min, FROM_RANGE.max),
+      note: clamp(note, NOTE_RANGE.min, NOTE_RANGE.max)
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeStoredCols(cols: Cols): void {
+  try {
+    window.localStorage.setItem(COLS_KEY, JSON.stringify(cols))
+  } catch {
+    // Not persisted; the widths still apply for this session.
+  }
+}
+
+function clearStoredCols(): void {
+  try {
+    window.localStorage.removeItem(COLS_KEY)
+  } catch {
+    // Nothing stored to remove.
+  }
+}
+
 type Load = { status: 'loading' } | { status: 'error'; error: unknown } | { status: 'ready' }
 
 export default function Review({ viewportHeight }: { viewportHeight?: number }): React.JSX.Element {
@@ -34,6 +92,55 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
   const [runError, setRunError] = useState<unknown>(null)
   const [starting, setStarting] = useState(false)
   const [failedOrders, setFailedOrders] = useState(0)
+  // null means the user has not resized: the CSS defaults (which vary with window width) apply.
+  const [cols, setCols] = useState<Cols | null>(readStoredCols)
+  const [narrow, setNarrow] = useState(isNarrow)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const defaults = narrow ? NARROW_COLS : DEFAULT_COLS
+  const shown = cols ?? defaults
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const query = window.matchMedia(NARROW_QUERY)
+    const onChange = (): void => setNarrow(query.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    if (cols !== null) writeStoredCols(cols)
+  }, [cols])
+
+  function resizeColumn(kind: 'from' | 'note', dx: number): void {
+    // dx is the pointer's movement to the right; dragging a divider left (dx < 0) widens the
+    // column on its right.
+    const sheetWidth = sheetRef.current?.clientWidth ?? 0
+    setCols((prev) => {
+      const base = prev ?? defaults
+      if (kind === 'from') {
+        // Game is what is left after the stub, padding, Note and From; keep it at GAME_MIN.
+        // Without a layout (sheetWidth 0) only the From range applies.
+        const fromMax =
+          sheetWidth > 0 ? sheetWidth - FIXED_CHROME - base.note - GAME_MIN : FROM_RANGE.max
+        return {
+          from: clamp(base.from - dx, FROM_RANGE.min, Math.min(FROM_RANGE.max, fromMax)),
+          note: base.note
+        }
+      }
+      // The Note divider moves the From/Note boundary: From and Note trade pixels, Game is fixed.
+      const shift = clamp(
+        dx,
+        Math.max(FROM_RANGE.min - base.from, base.note - NOTE_RANGE.max),
+        Math.min(FROM_RANGE.max - base.from, base.note - NOTE_RANGE.min)
+      )
+      return { from: base.from + shift, note: base.note - shift }
+    })
+  }
+
+  function resetColumns(): void {
+    setCols(null)
+    clearStoredCols()
+  }
 
   const fetchReview = useCallback(() => {
     const fresh = takeFreshLibrary()
@@ -176,7 +283,18 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
             const groupItems = byGroup.get(group) ?? []
             const anyTicked = groupItems.some((i) => ticks[i.key.id])
             return (
-              <div className="review-sheet">
+              <div
+                className="review-sheet"
+                ref={sheetRef}
+                style={
+                  cols
+                    ? ({
+                        '--col-from': `${cols.from}px`,
+                        '--col-note': `${cols.note}px`
+                      } as React.CSSProperties)
+                    : undefined
+                }
+              >
                 {(HINTS[group] || anyTicked) && (
                   <div className="review-hint">
                     <span>{HINTS[group]}</span>
@@ -195,8 +313,28 @@ export default function Review({ viewportHeight }: { viewportHeight?: number }):
                 <div className="sheet-cols review-cols">
                   <span />
                   <span>Game</span>
-                  <span>From</span>
-                  <span>Note</span>
+                  <span>
+                    From
+                    <ColumnResizer
+                      label="Resize From column"
+                      value={shown.from}
+                      min={FROM_RANGE.min}
+                      max={FROM_RANGE.max}
+                      onDelta={(dx) => resizeColumn('from', dx)}
+                      onReset={resetColumns}
+                    />
+                  </span>
+                  <span>
+                    Note
+                    <ColumnResizer
+                      label="Resize Note column"
+                      value={shown.note}
+                      min={NOTE_RANGE.min}
+                      max={NOTE_RANGE.max}
+                      onDelta={(dx) => resizeColumn('note', dx)}
+                      onReset={resetColumns}
+                    />
+                  </span>
                 </div>
                 <VirtualRows
                   items={groupItems}
