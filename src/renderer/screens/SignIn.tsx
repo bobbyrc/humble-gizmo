@@ -131,7 +131,9 @@ export default function SignIn(): React.JSX.Element {
           <section key={service} className="signin-card" aria-label={name}>
             <div className="signin-name">{name}</div>
             {status[service] ? (
-              <Stamp tone="redeemed">Signed in</Stamp>
+              <div className="signin-stamp">
+                <Stamp tone="redeemed">Signed in</Stamp>
+              </div>
             ) : (
               <>
                 <Pill tone="muted">Not signed in</Pill>

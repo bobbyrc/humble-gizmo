@@ -66,12 +66,27 @@
 
 .signin-card .btn {
   width: 100%;
+  margin-top: auto;
 }
 
-/* Pins the last child (the stamp or the button) to the card bottom; the cards share a grid row height. */
-.signin-card > :last-child {
-  margin-top: auto;
-  align-self: flex-start;
+/* Fills the space under the name and centres the stamp both ways. */
+.signin-stamp {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.signin-stamp .stamp {
+  font-size: 20px;
+  padding: 6px 18px;
+  border-width: 3px;
+  outline-width: 1.5px;
+  outline-offset: 3px;
+  -webkit-mask-size: 192px 72px;
+  mask-size: 192px 72px;
 }
 
 .signin-result {
