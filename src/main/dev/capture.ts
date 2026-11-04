@@ -6,6 +6,7 @@ import { findChoiceOrders, parseMonthPage } from '../../core/choice'
 import { hasLeaks, sanitizeWithOriginals } from '../../core/sanitize'
 import { HumbleApi } from '../humble/humbleApi'
 import { steamIdFromLoginCookie } from '../steam/steamId'
+import { trimOrders, trimOwnedNames, trimUserdata } from './fixtureTrim'
 import { SessionHttpClient } from '../net/sessionHttpClient'
 import { createHumbleHttpClient } from '../net/transportConfig'
 import { checkSignedIn, openSignInWindow } from '../windows/signIn'
@@ -82,7 +83,7 @@ async function captureHumble(salt: string): Promise<void> {
     orders.push(...batch.orders.filter(isChoiceOrder))
     rest = rest.slice(EXTRA_BATCH)
   }
-  save('orders.json', orders, salt)
+  save('orders.json', trimOrders(orders), salt)
 
   await step('choice-month', async () => {
     const choice = findChoiceOrders(orders)[0]
@@ -103,7 +104,7 @@ async function captureSteam(salt: string): Promise<void> {
     const res = await http.get(`${STORE}/dynamicstore/userdata/`)
     const json = parseJson(res.body)
     if (res.status !== 200 || json === undefined) throw new Error('userdata response')
-    save('userdata.json', json, salt)
+    save('userdata.json', trimUserdata(json), salt)
   })
 
   await step('owned-names', async () => {
@@ -125,7 +126,7 @@ async function captureSteam(salt: string): Promise<void> {
     const res = await http.get(`${API}/IPlayerService/GetOwnedGames/v1/?${query.toString()}`)
     const json = parseJson(res.body)
     if (res.status !== 200 || json === undefined) throw new Error('owned games response')
-    save('owned-names.json', json, salt)
+    save('owned-names.json', trimOwnedNames(json), salt)
   })
 }
 
