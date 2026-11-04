@@ -50,10 +50,9 @@ export type RunSummary = { redeemed: number; owned: number; errors: number; rema
 export type Settings = {
   consentShown: boolean; autoUpdate: boolean;
   scheduleHours: number | null; keepInBackground: boolean; launchAtLogin: boolean;
-  steamApiKey: string | null; // optional fallback, only if Task 5 requires it
 };
 export const DEFAULT_SETTINGS: Settings = {
   consentShown: false, autoUpdate: false, scheduleHours: null,
-  keepInBackground: false, launchAtLogin: false, steamApiKey: null,
+  keepInBackground: false, launchAtLogin: false,
 };
 export type Service = 'humble' | 'steam';

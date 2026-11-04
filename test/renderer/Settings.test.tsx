@@ -111,24 +111,6 @@ describe('Settings', () => {
     expect(await screen.findAllByText('Signed out')).toHaveLength(2)
   })
 
-  it('keeps the Steam API key in a collapsed Advanced section and saves it trimmed on blur', async () => {
-    const g = mockGizmo({
-      getSettings: vi.fn(async () => ({ ...DEFAULT_SETTINGS, steamApiKey: 'SECRETKEY' }))
-    })
-    await renderSettings()
-    expect(screen.queryByLabelText('Steam Web API key')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }))
-    const input = screen.getByLabelText('Steam Web API key') as HTMLInputElement
-    expect(input.type).toBe('password')
-    expect(input.value).toBe('SECRETKEY')
-    fireEvent.change(input, { target: { value: '  NEWKEY  ' } })
-    fireEvent.blur(input)
-    await waitFor(() => expect(g.setSettings).toHaveBeenCalledWith({ steamApiKey: 'NEWKEY' }))
-    fireEvent.change(input, { target: { value: '   ' } })
-    fireEvent.blur(input)
-    await waitFor(() => expect(g.setSettings).toHaveBeenCalledWith({ steamApiKey: null }))
-  })
-
   it('does not delete when the confirmation is cancelled', async () => {
     const g = mockGizmo()
     await renderSettings()
@@ -160,20 +142,6 @@ describe('Settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(box.checked).toBe(true))
     expect(screen.queryByText('Something went wrong. Try again.')).toBeNull()
-  })
-
-  it('restores the API key field when saving it fails', async () => {
-    const g = mockGizmo({
-      getSettings: vi.fn(async () => ({ ...DEFAULT_SETTINGS, steamApiKey: 'OLD' }))
-    })
-    await renderSettings()
-    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }))
-    const input = screen.getByLabelText('Steam Web API key') as HTMLInputElement
-    g.setSettings.mockRejectedValueOnce(new Error('boom'))
-    fireEvent.change(input, { target: { value: 'NEW' } })
-    fireEvent.blur(input)
-    await screen.findByText('Something went wrong. Try again.')
-    expect(input.value).toBe('OLD')
   })
 
   it('shows the session-expired banner for a SessionExpiredError', async () => {
@@ -231,12 +199,6 @@ describe('Settings', () => {
     expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByRole('button', { name: CHECK_UPDATES_NOW })).toBeTruthy()
-  })
-
-  it('does not show a count on Advanced', async () => {
-    mockGizmo()
-    await renderSettings()
-    expect(screen.getByRole('button', { name: /Advanced/ }).textContent).not.toMatch(/0/)
   })
 
   it('shows the app version from the build', async () => {

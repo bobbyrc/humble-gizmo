@@ -25,7 +25,6 @@
 
 /* Each entry in a sheet sits below a dashed perforation. */
 .settings-group .settings-row,
-.settings-group .settings-field,
 .settings-group > p,
 .settings-group > .checkbox {
   margin: 0;
@@ -45,14 +44,6 @@
   gap: 12px;
 }
 
-.settings-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.settings-input,
 .settings-select {
   box-sizing: border-box;
   height: 40px;
@@ -62,10 +53,6 @@
   background: var(--sheet);
   border: 1.5px solid var(--ink-2);
   border-radius: var(--radius);
-}
-
-.settings-input {
-  min-width: 320px;
 }
 
 .select-wrap {
@@ -95,31 +82,4 @@
 
 .settings-select:hover {
   border-color: var(--ink);
-}
-
-.settings-disclosure {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin: 0;
-  padding: 16px 20px 12px;
-  font: 700 20px/1.1 var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  text-align: left;
-  color: var(--ink);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-.settings-disclosure svg {
-  flex: none;
-  transition: transform 120ms;
-}
-
-.settings-disclosure[aria-expanded='true'] svg {
-  transform: rotate(90deg);
 }

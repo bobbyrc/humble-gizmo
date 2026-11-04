@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HttpClient } from '../../src/main/net/httpClient'
 import {
-  ApiKeyOwnedNames,
-  ChainOwnedNames,
-  CommunityPageOwnedNames,
   WebTokenOwnedNames,
   createOwnedNamesSource,
   type OwnedNamesSource
@@ -205,76 +202,15 @@ describe('WebTokenOwnedNames', () => {
   })
 })
 
-describe('CommunityPageOwnedNames', () => {
-  const page = (attr: string): string =>
-    `<html><div id="x" data-profile-gameslist="${attr}"></div></html>`
-  const encoded = JSON.stringify({ rgGames: [{ appid: 7, name: 'Tom &amp; "Jerry"' }] })
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-
-  it('decodes the attribute and reads rgGames', async () => {
-    const http = new FakeHttp(() => ({ status: 200, body: page(encoded) }))
-    const result = await new CommunityPageOwnedNames(http).fetch()
-    expect(result.get(7)).toBe('Tom &amp; "Jerry"')
-    expect(http.calls[0].url).toBe(`https://steamcommunity.com/profiles/${ID}/games/?tab=all`)
-  })
-
-  it('throws ServiceChangedError when the attribute is absent', async () => {
-    const http = new FakeHttp(() => ({ status: 200, body: '<html></html>' }))
-    await expect(new CommunityPageOwnedNames(http).fetch()).rejects.toBeInstanceOf(
-      ServiceChangedError
+describe('createOwnedNamesSource', () => {
+  it('reads names through the web token', async () => {
+    const http = new FakeHttp((c) =>
+      c.url.includes('ajaxgetasyncconfig')
+        ? ok({ data: { webapi_token: 'tok' } })
+        : ok({ response: { games: [{ appid: 1, name: 'A' }] } })
     )
-  })
-
-  it('throws ServiceChangedError when the attribute is not the expected JSON', async () => {
-    const http = new FakeHttp(() => ({ status: 200, body: page('not json') }))
-    await expect(new CommunityPageOwnedNames(http).fetch()).rejects.toBeInstanceOf(
-      ServiceChangedError
-    )
-  })
-})
-
-describe('ApiKeyOwnedNames', () => {
-  it('throws without a key and makes no request', async () => {
-    const http = new FakeHttp(() => ok({}))
-    await expect(new ApiKeyOwnedNames(http, () => null).fetch()).rejects.toThrow()
-    expect(http.calls).toHaveLength(0)
-  })
-
-  it('queries with the key', async () => {
-    const http = new FakeHttp(() => ok({ response: { games: [{ appid: 3, name: 'Three' }] } }))
-    const result = await new ApiKeyOwnedNames(http, () => 'K3Y').fetch()
-    expect(result.get(3)).toBe('Three')
-    const u = new URL(http.calls[0].url)
-    expect(u.searchParams.get('key')).toBe('K3Y')
-    expect(u.searchParams.get('steamid')).toBe(ID)
-    expect(u.searchParams.get('include_appinfo')).toBe('1')
-  })
-})
-
-describe('ChainOwnedNames', () => {
-  it('returns the first non-empty result', async () => {
-    const chain = new ChainOwnedNames([
-      failing(new Error('a')),
-      names([]),
-      names([[1, 'x']]),
-      names([[2, 'y']])
-    ])
-    expect([...(await chain.fetch())]).toEqual([[1, 'x']])
-  })
-
-  it('throws the last error when all fail', async () => {
-    const chain = new ChainOwnedNames([failing(new Error('first')), failing(new Error('last'))])
-    await expect(chain.fetch()).rejects.toThrow('last')
-  })
-
-  it('createOwnedNamesSource falls through token to community page', async () => {
-    const http = new FakeHttp((c) => {
-      if (c.url.includes('ajaxgetasyncconfig')) return { status: 500, body: '' }
-      const attr = JSON.stringify({ rgGames: [{ appid: 1, name: 'A' }] }).replace(/"/g, '&quot;')
-      return { status: 200, body: `<div data-profile-gameslist="${attr}">` }
-    })
-    const result = await createOwnedNamesSource(http, () => null).fetch()
+    const result = await createOwnedNamesSource(http).fetch()
     expect(result.get(1)).toBe('A')
+    expect(http.calls).toHaveLength(2)
   })
 })

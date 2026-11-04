@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CHECK_UPDATES_NOW, NOT_AFFILIATED, NO_KEYRING_NOTICE } from '../../shared/copy'
 import type { Service, Settings as SettingsData } from '../../shared/types'
 import { gizmo } from '../gizmo'
@@ -33,7 +33,6 @@ export default function Settings(): React.JSX.Element {
   const [check, setCheck] = useState<CheckState>('idle')
   const [signedOut, setSignedOut] = useState<Partial<Record<Service, boolean>>>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [apiKey, setApiKey] = useState('')
   const [fail, setFail] = useState<{ e: unknown; retry: () => void } | null>(null)
 
   const load = useCallback((): void => {
@@ -41,7 +40,6 @@ export default function Settings(): React.JSX.Element {
     gizmo.getSettings().then(
       (s) => {
         setSettings(s)
-        setApiKey(s.steamApiKey ?? '')
       },
       (e: unknown) => setFail({ e, retry: load })
     )
@@ -64,7 +62,6 @@ export default function Settings(): React.JSX.Element {
       setSettings(await gizmo.setSettings(patch))
     } catch (e) {
       setSettings((s) => (s ? { ...s, ...previous } : s))
-      if ('steamApiKey' in previous) setApiKey(previous.steamApiKey ?? '')
       setFail({ e, retry: () => void save(patch) })
     }
   }
@@ -194,29 +191,6 @@ export default function Settings(): React.JSX.Element {
         ))}
       </div>
 
-      <Advanced>
-        <div className="settings-field">
-          <label htmlFor="steam-api-key">Steam Web API key</label>
-          <input
-            id="steam-api-key"
-            className="settings-input"
-            type="password"
-            autoComplete="off"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            onBlur={() => {
-              const trimmed = apiKey.trim()
-              setApiKey(trimmed)
-              void save({ steamApiKey: trimmed === '' ? null : trimmed })
-            }}
-          />
-          <span className="muted small">
-            Optional. Only needed if Humble Gizmo can&apos;t work out which games you own. Get one
-            at steamcommunity.com/dev/apikey.
-          </span>
-        </div>
-      </Advanced>
-
       <div className="settings-group sheet">
         <h2>Data</h2>
         {!encrypted && <Banner tone="warn">{NO_KEYRING_NOTICE}</Banner>}
@@ -243,35 +217,5 @@ export default function Settings(): React.JSX.Element {
         onCancel={() => setConfirmDelete(false)}
       />
     </div>
-  )
-}
-
-/** Collapsed-by-default disclosure. ui.tsx's Section always shows a count, which is noise here. */
-function Advanced({ children }: { children: React.ReactNode }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const bodyId = useId()
-  return (
-    <section className="settings-group sheet">
-      <button
-        type="button"
-        className="settings-disclosure"
-        aria-expanded={open}
-        aria-controls={open ? bodyId : undefined}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-          <path
-            d="M4 2l4 4-4 4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        Advanced
-      </button>
-      {open && <div id={bodyId}>{children}</div>}
-    </section>
   )
 }

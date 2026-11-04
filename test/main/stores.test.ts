@@ -113,6 +113,24 @@ describe('SettingsStore', () => {
   })
 })
 
+describe('SettingsStore legacy keys', () => {
+  it('drops a saved steamApiKey and unknown keys, and removes them from disk on open', async () => {
+    const file = path.join(dir, 'settings.json')
+    await fs.writeFile(
+      file,
+      JSON.stringify({ autoUpdate: true, steamApiKey: 'LEGACY-SECRET', unknownKey: 1 })
+    )
+    const s = await SettingsStore.open(dir)
+    expect(s.get()).toEqual({ ...DEFAULT_SETTINGS, autoUpdate: true })
+    expect(s.get()).not.toHaveProperty('steamApiKey')
+    expect(s.get()).not.toHaveProperty('unknownKey')
+    const raw = await fs.readFile(file, 'utf8')
+    expect(raw).not.toContain('steamApiKey')
+    expect(raw).not.toContain('LEGACY-SECRET')
+    expect(raw).not.toContain('unknownKey')
+  })
+})
+
 describe('SettingsStore recovery', () => {
   it('moves an unreadable settings.json aside and starts from defaults', async () => {
     await fs.writeFile(path.join(dir, 'settings.json'), '{not json SECRET-VALUE')

@@ -91,10 +91,7 @@ async function start(): Promise<void> {
 
   const humble = new HumbleApi(createHumbleHttpClient())
   const steamHttp = new SessionHttpClient('persist:steam')
-  const steam = new SteamApi(
-    steamHttp,
-    createOwnedNamesSource(steamHttp, () => settings.get().steamApiKey)
-  )
+  const steam = new SteamApi(steamHttp, createOwnedNamesSource(steamHttp))
 
   let appWindow: BrowserWindow | null = null
   let blockerId: number | null = null

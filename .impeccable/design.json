@@ -180,7 +180,7 @@
       "kind": "input",
       "refersTo": "text-input",
       "description": "Settings and dialog input: 1.5px Ink Slate border on Coupon White, 2px radius.",
-      "html": "<input class=\"ds-input\" type=\"text\" value=\"\" aria-label=\"Steam Web API key\">",
+      "html": "<input class=\"ds-input\" type=\"text\" value=\"\" aria-label=\"Type REVEAL to confirm\">",
       "css": ".ds-input{box-sizing:border-box;height:40px;min-width:320px;padding:0 12px;border:1.5px solid #4a5372;border-radius:2px;background:#fff;color:#101a3a;font:400 15px 'Libre Franklin',system-ui,sans-serif} .ds-input:hover{border-color:#101a3a} .ds-input:focus-visible{outline:2px solid #1d5bd8;outline-offset:2px}"
     },
     {

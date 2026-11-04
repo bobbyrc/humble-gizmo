@@ -319,8 +319,6 @@ className="num">N</span> label</span>`: 1.5px solid `--rule-soft` border, bg `--
   (`.settings-row`) separated by dashed perforations, padding 14px 20px.
 - `select` is themed: `appearance: none`, a CSS-drawn chevron (rotated bordered square, `--ink-2`) inside a `.select-wrap`, padding-right 36px. `select` and text/password inputs: height 40, 1.5px solid `--ink-2` border, radius `--radius`,
   bg `--sheet`, `--ink`, 15px body font, padding 0 12px; focus ring `--focus`.
-- Advanced disclosure keeps its behaviour; its header styled like the H2 row with a small authored
-  SVG chevron that rotates 90° when open.
 - Delete all local data: `danger` button. About: version in `.data`.
 
 ### Welcome (inside the unsigned-in coupon)

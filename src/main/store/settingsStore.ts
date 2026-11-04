@@ -24,7 +24,16 @@ export class SettingsStore {
       console.warn(`settings.json was unreadable; moved to ${aside}`)
       stored = null
     }
-    return new SettingsStore(file, { ...DEFAULT_SETTINGS, ...stored })
+    // Drop keys this version no longer knows (e.g. a legacy API key) and rewrite the file
+    // so the old value does not stay on disk.
+    const current: Settings = { ...DEFAULT_SETTINGS }
+    let dropped = false
+    for (const [key, value] of Object.entries(stored ?? {})) {
+      if (Object.hasOwn(DEFAULT_SETTINGS, key)) Object.assign(current, { [key]: value })
+      else dropped = true
+    }
+    if (dropped) await writeJsonAtomic(file, current)
+    return new SettingsStore(file, current)
   }
 
   get(): Settings {
