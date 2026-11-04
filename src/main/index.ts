@@ -278,9 +278,12 @@ async function start(): Promise<void> {
 // The dev tools open real sign-in windows and write files, so a packaged app never runs them.
 if (!app.isPackaged && process.env.GIZMO_PROBE === '1') {
   // Dev spike (npm run probe): no app window, only the sign-in windows.
+  // Without a listener Electron quits when its last window closes, cutting the run short.
+  app.on('window-all-closed', () => undefined)
   void app.whenReady().then(runProbe)
 } else if (!app.isPackaged && process.env.GIZMO_CAPTURE === '1') {
   // Dev tool (npm run capture): saves sanitized fixtures, no app window.
+  app.on('window-all-closed', () => undefined)
   void app.whenReady().then(runCapture)
 } else if (!app.requestSingleInstanceLock()) {
   app.quit()
