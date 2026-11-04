@@ -28,6 +28,14 @@ export interface HumbleApiOptions {
   sleep?: (ms: number) => Promise<void>
 }
 
+/** The choice page redirected: Humble will not open this month, but the session may be fine. */
+export class ChoicePageRedirectError extends Error {
+  constructor() {
+    super('choice page redirected')
+    this.name = 'ChoicePageRedirectError'
+  }
+}
+
 const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 function isLoginPage(body: string): boolean {
@@ -172,6 +180,7 @@ export class HumbleApi {
 
   async getChoiceMonth(order: ChoiceOrder): Promise<ChoiceMonth | null> {
     const res = await this.http.get(`${ORIGIN}/subscription/${encodeURIComponent(order.choiceUrl)}`)
+    if (res.status >= 300 && res.status < 400) throw new ChoicePageRedirectError()
     checkOk(res, 'choice page')
     return buildChoiceMonth(order, parseMonthPage(res.body))
   }

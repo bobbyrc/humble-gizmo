@@ -286,7 +286,11 @@ export function fakeGizmo(scenario: string): GizmoApi {
         listeners.delete(cb)
       }
     },
-    listChoiceMonths: async () => choiceMonths(),
+    listChoiceMonths: async () => {
+      if (scenario === 'choice-locked') return { months: [], locked: 4 }
+      if (scenario === 'choice-partial') return { months: choiceMonths().slice(0, 1), locked: 2 }
+      return { months: choiceMonths(), locked: 0 }
+    },
     claimChoices: async () => {
       await sleep(500)
       return { failed: [] }

@@ -17,7 +17,7 @@ export function mockGizmo(overrides: Partial<GizmoApi> = {}): MockGizmo {
     startRun: vi.fn(async () => undefined),
     stopRun: vi.fn(async () => undefined),
     onRunEvent: vi.fn(() => () => undefined),
-    listChoiceMonths: vi.fn(async () => []),
+    listChoiceMonths: vi.fn(async () => ({ months: [], locked: 0 })),
     claimChoices: vi.fn(async () => ({ failed: [] })),
     openExternal: vi.fn(async () => undefined),
     history: vi.fn(async () => []),

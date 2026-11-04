@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HumbleApi } from '../../src/main/humble/humbleApi'
+import { ChoicePageRedirectError, HumbleApi } from '../../src/main/humble/humbleApi'
 import type { HttpClient } from '../../src/main/net/httpClient'
 import { ServiceChangedError, SessionExpiredError } from '../../src/shared/errors'
 import type { HumbleKey } from '../../src/shared/types'
@@ -284,8 +284,18 @@ describe('getChoiceMonth', () => {
     )
   })
 
-  it('throws SessionExpiredError on a redirect', async () => {
+  it('throws ChoicePageRedirectError on a redirect, not SessionExpiredError', async () => {
     const http = new FakeHttp(() => ({ status: 302, body: '' }))
+    const err = await new HumbleApi(http).getChoiceMonth(order).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ChoicePageRedirectError)
+    expect(err).not.toBeInstanceOf(SessionExpiredError)
+  })
+
+  it('still throws SessionExpiredError for the login page', async () => {
+    const http = new FakeHttp(() => ({
+      status: 200,
+      body: '<form action="/processlogin"></form>'
+    }))
     await expect(new HumbleApi(http).getChoiceMonth(order)).rejects.toBeInstanceOf(
       SessionExpiredError
     )

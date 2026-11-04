@@ -17,7 +17,7 @@ import {
   type Service,
   type Settings
 } from '../../shared/types'
-import type { HumbleApi } from '../humble/humbleApi'
+import { ChoicePageRedirectError, type HumbleApi } from '../humble/humbleApi'
 import type { SteamApi } from '../steam/steamApi'
 import type { KeyStore } from '../store/keyStore'
 import type { SettingsStore } from '../store/settingsStore'
@@ -260,12 +260,25 @@ export function createHandlers(ctx: AppContext): Handlers {
     listChoiceMonths: async () => {
       const lib = await requireLibrary()
       const found: ChoiceMonth[] = []
+      let locked = 0
+      let sessionChecked = false
       for (const order of findChoiceOrders(lib.orders)) {
-        const month = await humble.getChoiceMonth(order)
-        if (month) found.push(month)
+        try {
+          const month = await humble.getChoiceMonth(order)
+          if (month) found.push(month)
+        } catch (e) {
+          if (!(e instanceof ChoicePageRedirectError)) throw e
+          // Humble redirects a month page it will not open. Confirm the session is still
+          // valid first, so a signed-out user still gets the sign-in prompt.
+          if (!sessionChecked) {
+            await humble.listOrderGamekeys()
+            sessionChecked = true
+          }
+          locked++
+        }
       }
       months = new Map(found.map((m) => [m.gamekey, m]))
-      return found
+      return { months: found, locked }
     },
 
     claimChoices: async (monthGamekey, identifiers) => {

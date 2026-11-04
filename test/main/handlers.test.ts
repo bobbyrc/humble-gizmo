@@ -12,6 +12,7 @@ import { KeyStore } from '../../src/main/store/keyStore'
 import { SettingsStore } from '../../src/main/store/settingsStore'
 import { plaintextCodec } from '../../src/main/store/codec'
 import { SessionExpiredError } from '../../src/shared/errors'
+import { ChoicePageRedirectError } from '../../src/main/humble/humbleApi'
 import type { GizmoApi } from '../../src/shared/ipc'
 import type { ChoiceMonth, OwnedData } from '../../src/shared/types'
 import type { Clock } from '../../src/core/runner'
@@ -331,12 +332,50 @@ describe('choices', () => {
 
   it('fails non-claimable and unknown games without calling chooseContent for them', async () => {
     const h = make()
-    expect(await h.listChoiceMonths()).toEqual([month])
+    expect(await h.listChoiceMonths()).toEqual({ months: [month], locked: 0 })
     const res = await h.claimChoices('g1', ['ok', 'nope', 'missing'])
     expect(res.failed).toEqual(['nope', 'missing'])
     expect(humble.chooseContent).toHaveBeenCalledTimes(1)
     expect(humble.chooseContent).toHaveBeenCalledWith('gk', 'p', 'ok')
     expect(humble.getOrders).toHaveBeenLastCalledWith(['g1'])
+  })
+
+  it('counts a redirected month as locked and keeps the others', async () => {
+    const other = { ...month, gamekey: 'g2' }
+    humble.getOrders.mockResolvedValue({
+      orders: [choiceOrder, { ...choiceOrder, gamekey: 'g2' }],
+      failed: []
+    })
+    humble.getChoiceMonth.mockImplementation(async (o: { gamekey: string }) => {
+      if (o.gamekey === 'g1') throw new ChoicePageRedirectError()
+      return other
+    })
+    const h = make()
+    await h.loadLibrary()
+    humble.listOrderGamekeys.mockClear()
+    expect(await h.listChoiceMonths()).toEqual({ months: [other], locked: 1 })
+    expect(humble.listOrderGamekeys).toHaveBeenCalledTimes(1)
+  })
+
+  it('checks the session once however many months redirect', async () => {
+    humble.getOrders.mockResolvedValue({
+      orders: [choiceOrder, { ...choiceOrder, gamekey: 'g2' }],
+      failed: []
+    })
+    humble.getChoiceMonth.mockRejectedValue(new ChoicePageRedirectError())
+    const h = make()
+    await h.loadLibrary()
+    humble.listOrderGamekeys.mockClear()
+    expect(await h.listChoiceMonths()).toEqual({ months: [], locked: 2 })
+    expect(humble.listOrderGamekeys).toHaveBeenCalledTimes(1)
+  })
+
+  it('rethrows SessionExpiredError when the redirect is a real sign-out', async () => {
+    humble.getChoiceMonth.mockRejectedValue(new ChoicePageRedirectError())
+    const h = make()
+    await h.loadLibrary()
+    humble.listOrderGamekeys.mockRejectedValue(new SessionExpiredError('humble'))
+    await expect(h.listChoiceMonths()).rejects.toThrow('SessionExpiredError')
   })
 
   it('records false and thrown results as failed but rethrows session expiry', async () => {

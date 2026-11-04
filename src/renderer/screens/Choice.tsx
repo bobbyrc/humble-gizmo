@@ -11,6 +11,7 @@ type Result =
 
 export default function Choice(): React.JSX.Element {
   const [months, setMonths] = useState<ChoiceMonth[] | null>(null)
+  const [locked, setLocked] = useState(0)
   const [loadError, setLoadError] = useState<unknown>(null)
   const [result, setResult] = useState<Result | null>(null)
   const [busy, setBusy] = useState(false)
@@ -31,9 +32,10 @@ export default function Choice(): React.JSX.Element {
     ready
       .then(() => gizmo.listChoiceMonths())
       .then(
-        (m) => {
+        (listing) => {
           if (cancelled) return
-          setMonths(m)
+          setMonths(listing.months)
+          setLocked(listing.locked)
           setLoadError(null)
         },
         (e: unknown) => {
@@ -96,17 +98,36 @@ export default function Choice(): React.JSX.Element {
       {months === null ? (
         <Spinner label="Loading your Humble Choice months…" />
       ) : months.length === 0 ? (
-        loadError === null && (
+        loadError === null &&
+        (locked > 0 ? (
+          <div className="sheet choice-empty">
+            <p>
+              Humble wouldn&apos;t open your Humble Choice months. That usually means you don&apos;t
+              have an active Humble Choice subscription.
+            </p>
+            <p className="muted small">
+              {locked} {locked === 1 ? 'month still has' : 'months still have'} picks you
+              haven&apos;t made.
+            </p>
+          </div>
+        ) : (
           <div className="sheet choice-empty">
             <p>No Humble Choice picks left to make.</p>
           </div>
-        )
+        ))
       ) : (
-        <div className="choice-months">
-          {months.map((m) => (
-            <MonthCard key={m.gamekey} month={m} busy={busy} onClaim={claim} />
-          ))}
-        </div>
+        <>
+          {locked > 0 && (
+            <Banner tone="warn">
+              {`Humble wouldn't open ${locked} other ${locked === 1 ? 'month' : 'months'} with picks left. That usually means your Humble Choice subscription isn't active.`}
+            </Banner>
+          )}
+          <div className="choice-months">
+            {months.map((m) => (
+              <MonthCard key={m.gamekey} month={m} busy={busy} onClaim={claim} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

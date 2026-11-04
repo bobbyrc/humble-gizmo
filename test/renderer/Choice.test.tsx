@@ -46,8 +46,31 @@ describe('Choice', () => {
     expect(await screen.findByText('No Humble Choice picks left to make.')).toBeTruthy()
   })
 
+  it('shows the all-locked message when Humble opens no month', async () => {
+    mockGizmo({ listChoiceMonths: vi.fn(async () => ({ months: [], locked: 4 })) })
+    renderChoice()
+    expect(
+      await screen.findByText(
+        "Humble wouldn't open your Humble Choice months. That usually means you don't have an active Humble Choice subscription."
+      )
+    ).toBeTruthy()
+    expect(screen.getByText("4 months still have picks you haven't made.")).toBeTruthy()
+    expect(screen.queryByText('No Humble Choice picks left to make.')).toBeNull()
+  })
+
+  it('shows a warn banner above the months when some are locked', async () => {
+    mockGizmo({ listChoiceMonths: vi.fn(async () => ({ months: [month()], locked: 2 })) })
+    renderChoice()
+    expect(
+      await screen.findByText(
+        "Humble wouldn't open 2 other months with picks left. That usually means your Humble Choice subscription isn't active."
+      )
+    ).toBeTruthy()
+    expect(screen.getByText('Pick up to 2 (0 picked)')).toBeTruthy()
+  })
+
   it('renders rating, header and caps ticking at choicesRemaining', async () => {
-    mockGizmo({ listChoiceMonths: vi.fn(async () => [month()]) })
+    mockGizmo({ listChoiceMonths: vi.fn(async () => ({ months: [month()], locked: 0 })) })
     renderChoice()
     expect(await screen.findByText('Pick up to 2 (0 picked)')).toBeTruthy()
     expect(screen.getAllByText('Very Positive · 93%').length).toBe(3)
@@ -60,7 +83,10 @@ describe('Choice', () => {
   })
 
   it('requires confirmation, then claims and refreshes', async () => {
-    const list = vi.fn().mockResolvedValueOnce([month()]).mockResolvedValueOnce([])
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ months: [month()], locked: 0 })
+      .mockResolvedValueOnce({ months: [], locked: 0 })
     const api = mockGizmo({ listChoiceMonths: list })
     renderChoice()
     fireEvent.click(await screen.findByLabelText(/Game a/))
@@ -77,7 +103,7 @@ describe('Choice', () => {
 
   it('lists failed games', async () => {
     mockGizmo({
-      listChoiceMonths: vi.fn(async () => [month()]),
+      listChoiceMonths: vi.fn(async () => ({ months: [month()], locked: 0 })),
       claimChoices: vi.fn(async () => ({ failed: ['a'] }))
     })
     renderChoice()
@@ -90,7 +116,7 @@ describe('Choice', () => {
   })
 
   it('refetches after a failed claim and offers Reload without re-claiming', async () => {
-    const list = vi.fn(async () => [month()])
+    const list = vi.fn(async () => ({ months: [month()], locked: 0 }))
     const api = mockGizmo({
       listChoiceMonths: list,
       claimChoices: vi.fn(async () => {
@@ -111,7 +137,7 @@ describe('Choice', () => {
   it('ignores a second confirm while a claim is in flight', async () => {
     let release: () => void = () => undefined
     const api = mockGizmo({
-      listChoiceMonths: vi.fn(async () => [month()]),
+      listChoiceMonths: vi.fn(async () => ({ months: [month()], locked: 0 })),
       claimChoices: vi.fn(
         () =>
           new Promise<{ failed: string[] }>((res) => {
@@ -132,9 +158,10 @@ describe('Choice', () => {
 
   it('hides Claim all when nothing is claimable', async () => {
     mockGizmo({
-      listChoiceMonths: vi.fn(async () => [
-        month({ usesChoices: false, games: [game('d', { claimable: false })] })
-      ])
+      listChoiceMonths: vi.fn(async () => ({
+        months: [month({ usesChoices: false, games: [game('d', { claimable: false })] })],
+        locked: 0
+      }))
     })
     renderChoice()
     await screen.findByRole('button', { name: 'Claim on Humble' })
@@ -142,7 +169,9 @@ describe('Choice', () => {
   })
 
   it('opens non-claimable games on Humble', async () => {
-    const api = mockGizmo({ listChoiceMonths: vi.fn(async () => [month()]) })
+    const api = mockGizmo({
+      listChoiceMonths: vi.fn(async () => ({ months: [month()], locked: 0 }))
+    })
     renderChoice()
     fireEvent.click(await screen.findByRole('button', { name: 'Claim on Humble' }))
     expect(api.openExternal).toHaveBeenCalledWith(
@@ -151,7 +180,9 @@ describe('Choice', () => {
   })
 
   it('Claim all ticks every claimable game when allowed', async () => {
-    mockGizmo({ listChoiceMonths: vi.fn(async () => [month({ choicesRemaining: 3 })]) })
+    mockGizmo({
+      listChoiceMonths: vi.fn(async () => ({ months: [month({ choicesRemaining: 3 })], locked: 0 }))
+    })
     renderChoice()
     fireEvent.click(await screen.findByRole('button', { name: 'Claim all' }))
     expect(box('Game a').checked && box('Game b').checked && box('Game c').checked).toBe(true)
@@ -178,7 +209,7 @@ describe('Choice', () => {
       }),
       listChoiceMonths: vi.fn(async () => {
         order.push('list')
-        return [month()]
+        return { months: [month()], locked: 0 }
       })
     })
     renderChoice()
