@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <g transform="translate(100 100) scale(0.8047)">
+  <!-- macOS variant: the same icon inset to Apple's 824px icon grid. -->
+  <rect width="1024" height="1024" rx="228" fill="#14245E"/>
+  <g transform="rotate(-10 512 512)">
+    <rect x="172" y="312" width="680" height="400" rx="28" fill="#FFFFFF"/>
+    <circle cx="660" cy="312" r="36" fill="#14245E"/>
+    <circle cx="660" cy="712" r="36" fill="#14245E"/>
+    <line x1="660" y1="372" x2="660" y2="652" stroke="#B9C0D3" stroke-width="10" stroke-dasharray="20 18" stroke-linecap="round"/>
+    <g transform="rotate(-7 414 512)">
+      <rect x="250" y="404" width="328" height="216" rx="22" fill="none" stroke="#4B2E83" stroke-width="18"/>
+      <rect x="278" y="432" width="272" height="160" rx="10" fill="none" stroke="#4B2E83" stroke-width="7"/>
+      <path d="M338 516 L396 572 L498 458" fill="none" stroke="#4B2E83" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <path d="M700 590 h44 l-26 54 h-44 z M760 590 h44 l-26 54 h-44 z" fill="#D9381E"/>
+    <rect x="696" y="420" width="112" height="20" rx="8" fill="#14245E"/>
+    <rect x="696" y="462" width="80" height="20" rx="8" fill="#B9C0D3"/>
+    <rect x="696" y="504" width="100" height="20" rx="8" fill="#B9C0D3"/>
+  </g>
+  </g>
+</svg>
