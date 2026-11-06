@@ -3,7 +3,7 @@ import { parseRegisterKeyResponse } from '../../core/steamCodes'
 import { ServiceChangedError, SessionExpiredError } from '../../shared/errors'
 import type { OwnedData } from '../../shared/types'
 import type { HttpClient } from '../net/httpClient'
-import { steamIdFromLoginCookie } from './steamId'
+import { loginTokenExpired, steamIdFromLoginCookie } from './steamId'
 import { checkOk, type OwnedNamesSource } from './ownedNames'
 
 const STORE = 'https://store.steampowered.com'
@@ -22,13 +22,27 @@ const userdataSchema = z
 export class SteamApi {
   constructor(
     private readonly http: HttpClient,
-    private readonly names: OwnedNamesSource
+    private readonly names: OwnedNamesSource,
+    private readonly refreshSession: () => Promise<boolean> = async () => false
   ) {}
 
+  /**
+   * Steam's store token lasts about a day and only Steam's own pages renew it, so an expired one
+   * is refreshed before use. Logged-out userdata is HTTP 200 with empty arrays, which would make
+   * every key look unowned, so no request goes out without a live token.
+   */
+  private async requireLogin(): Promise<void> {
+    const live = async (): Promise<boolean> => {
+      const v = await this.http.getCookie(STORE, 'steamLoginSecure')
+      return !!v && steamIdFromLoginCookie(v) !== null && !loginTokenExpired(v)
+    }
+    if (await live()) return
+    if ((await this.refreshSession()) && (await live())) return
+    throw new SessionExpiredError('steam')
+  }
+
   async getOwned(): Promise<OwnedData> {
-    // Logged-out userdata is HTTP 200 with empty arrays, which would make every key look unowned.
-    const login = await this.http.getCookie(STORE, 'steamLoginSecure')
-    if (!login || steamIdFromLoginCookie(login) === null) throw new SessionExpiredError('steam')
+    await this.requireLogin()
     const res = await this.http.get(`${STORE}/dynamicstore/userdata/`)
     checkOk(res, 'userdata')
     let raw: unknown
@@ -55,6 +69,7 @@ export class SteamApi {
 
   /** Redeems a key. Returns 0 on success, otherwise the Steam result code. */
   async registerKey(key: string): Promise<number> {
+    await this.requireLogin()
     const sessionId = await this.http.getCookie(STORE, 'sessionid')
     if (!sessionId) throw new SessionExpiredError('steam')
     const res = await this.http.postForm(

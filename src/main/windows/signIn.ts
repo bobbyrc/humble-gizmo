@@ -75,9 +75,65 @@ export function openSignInWindow(service: Service, parent?: BrowserWindow): Prom
   })
 }
 
+const refreshing: Partial<Record<Service, Promise<boolean>>> = {}
+
+/**
+ * Steam's store login token lasts about a day; its pages renew it from a longer-lived login
+ * cookie, which a plain request cannot do. Loads the status page in a hidden window: true if it
+ * lands there, false on the login page, a blocked navigation or a 20s timeout.
+ */
+export function refreshSession(service: Service): Promise<boolean> {
+  return (refreshing[service] ??= new Promise<boolean>((resolve) => {
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        partition: PARTITIONS[service],
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false
+      }
+    })
+    const login = new URL(SIGN_IN_URLS[service])
+    const finish = (ok: boolean): void => {
+      clearTimeout(timer)
+      resolve(ok)
+      if (!win.isDestroyed()) win.destroy()
+    }
+    const timer = setTimeout(() => finish(false), 20_000)
+    const contents = win.webContents
+    contents.on('did-navigate', (_e, url) => {
+      if (isSignInSuccessUrl(service, url)) finish(true)
+      const u = new URL(url)
+      if (u.hostname === login.hostname && u.pathname === login.pathname) finish(false)
+    })
+    // -3 is a navigation replaced by a redirect, which the refresh does; subframes don't count.
+    contents.on('did-fail-load', (_e, code, _desc, _url, isMainFrame) => {
+      if (isMainFrame && code !== -3) finish(false)
+    })
+    const guard = (event: { preventDefault: () => void }, url: string): void => {
+      if (!isAllowedSignInNavigation(url)) {
+        event.preventDefault()
+        finish(false)
+      }
+    }
+    contents.on('will-navigate', guard)
+    contents.on('will-redirect', guard)
+    contents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    // A rejection can mean a redirect replaced the load; did-fail-load and the timeout decide.
+    win.loadURL(STATUS_URLS[service]).catch(() => undefined)
+  }).finally(() => {
+    delete refreshing[service]
+  }))
+}
+
 /** Signed in when the status page loads directly instead of redirecting to a login page. */
 export async function checkSignedIn(service: Service): Promise<boolean> {
-  return checkSignedInWith(session.fromPartition(PARTITIONS[service]), STATUS_URLS[service])
+  const check = (): Promise<boolean> =>
+    checkSignedInWith(session.fromPartition(PARTITIONS[service]), STATUS_URLS[service])
+  if (await check()) return true
+  // Only Steam's token expires daily; Humble's session cookie does not need this.
+  return service === 'steam' && (await refreshSession(service)) && (await check())
 }
 
 export async function signOut(service: Service): Promise<void> {

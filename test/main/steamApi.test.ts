@@ -6,7 +6,7 @@ import {
   type OwnedNamesSource
 } from '../../src/main/steam/ownedNames'
 import { SteamApi } from '../../src/main/steam/steamApi'
-import { steamIdFromLoginCookie } from '../../src/main/steam/steamId'
+import { loginTokenExpired, steamIdFromLoginCookie } from '../../src/main/steam/steamId'
 import { ServiceChangedError, SessionExpiredError } from '../../src/shared/errors'
 
 type Res = { status: number; body: string }
@@ -53,6 +53,70 @@ describe('steamIdFromLoginCookie', () => {
   it('returns null otherwise', () => {
     expect(steamIdFromLoginCookie('garbage')).toBeNull()
     expect(steamIdFromLoginCookie('')).toBeNull()
+  })
+})
+
+const jwt = (exp: number): string =>
+  `h.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`
+const NOW = Date.UTC(2026, 10, 5)
+const loginCookie = (expSec: number): string => `${ID}%7C%7C${jwt(expSec)}`
+
+describe('loginTokenExpired', () => {
+  it('is true for a past or nearly past exp and false for a later one', () => {
+    expect(loginTokenExpired(loginCookie(NOW / 1000 - 1), NOW)).toBe(true)
+    expect(loginTokenExpired(loginCookie(NOW / 1000 + 30), NOW)).toBe(true)
+    expect(loginTokenExpired(loginCookie(NOW / 1000 + 3600), NOW)).toBe(false)
+    expect(loginTokenExpired(`${ID}||${jwt(NOW / 1000 + 3600)}`, NOW)).toBe(false)
+  })
+  it('treats an unreadable token as unexpired', () => {
+    for (const v of [`${ID}%7C%7Cjwt`, 'garbage', '%E0%A4%A', `${ID}||a.b.c`]) {
+      expect(loginTokenExpired(v, NOW)).toBe(false)
+    }
+  })
+})
+
+describe('SteamApi expired login token', () => {
+  const expired = loginCookie(Date.now() / 1000 - 60)
+  const fresh = loginCookie(Date.now() / 1000 + 3600)
+
+  it('refreshes the session and then reads userdata', async () => {
+    const http = new FakeHttp(() => ok({ rgOwnedApps: [7] }))
+    http.cookies.steamLoginSecure = expired
+    let refreshes = 0
+    const refresh = async (): Promise<boolean> => {
+      refreshes++
+      http.cookies.steamLoginSecure = fresh
+      return true
+    }
+    const owned = await new SteamApi(http, names([]), refresh).getOwned()
+    expect(refreshes).toBe(1)
+    expect([...owned.ids]).toEqual([7])
+  })
+
+  it('is session expired without a request when the refresh fails', async () => {
+    const http = new FakeHttp(() => ok({ rgOwnedApps: [] }))
+    http.cookies.steamLoginSecure = expired
+    const api = new SteamApi(http, names([]), async () => false)
+    await expect(api.getOwned()).rejects.toBeInstanceOf(SessionExpiredError)
+    await expect(api.registerKey('K')).rejects.toBeInstanceOf(SessionExpiredError)
+    expect(http.calls).toHaveLength(0)
+  })
+
+  it('is session expired when the refresh reports success but the token is still old', async () => {
+    const http = new FakeHttp(() => ok({ rgOwnedApps: [] }))
+    http.cookies.steamLoginSecure = expired
+    const api = new SteamApi(http, names([]), async () => true)
+    await expect(api.getOwned()).rejects.toBeInstanceOf(SessionExpiredError)
+    expect(http.calls).toHaveLength(0)
+  })
+
+  it('does not refresh a live token', async () => {
+    const http = new FakeHttp(() => ok({ success: 1 }))
+    http.cookies.steamLoginSecure = fresh
+    let refreshes = 0
+    const api = new SteamApi(http, names([]), async () => (refreshes++, true))
+    expect(await api.registerKey('K')).toBe(0)
+    expect(refreshes).toBe(0)
   })
 })
 

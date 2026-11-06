@@ -12,7 +12,7 @@ import { createTray } from './tray'
 import { runCapture } from './dev/capture'
 import { runProbe } from './dev/probe'
 import { createAppWindow } from './windows/appWindow'
-import { checkSignedIn, openSignInWindow, signOut } from './windows/signIn'
+import { checkSignedIn, openSignInWindow, refreshSession, signOut } from './windows/signIn'
 import { installAppSessionGuard } from './net/allowlist'
 import { hardenSession } from './net/hardenSession'
 import { getUpdatesAllowed, setUpdatesAllowed } from './net/updatesFlag'
@@ -91,7 +91,9 @@ async function start(): Promise<void> {
 
   const humble = new HumbleApi(createHumbleHttpClient())
   const steamHttp = new SessionHttpClient('persist:steam')
-  const steam = new SteamApi(steamHttp, createOwnedNamesSource(steamHttp))
+  const steam = new SteamApi(steamHttp, createOwnedNamesSource(steamHttp), () =>
+    refreshSession('steam')
+  )
 
   let appWindow: BrowserWindow | null = null
   let blockerId: number | null = null
