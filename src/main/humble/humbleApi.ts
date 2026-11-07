@@ -270,7 +270,7 @@ export class HumbleApi {
   }
 
   async getChoiceMonth(order: ChoiceOrder): Promise<ChoiceMonth | null> {
-    const res = await this.http.get(`${ORIGIN}/subscription/${encodeURIComponent(order.choiceUrl)}`)
+    const res = await this.http.get(`${ORIGIN}/membership/${encodeURIComponent(order.choiceUrl)}`)
     if (res.status >= 300 && res.status < 400) throw new ChoicePageRedirectError()
     checkOk(res, 'choice page')
     return buildChoiceMonth(order, parseMonthPage(res.body))

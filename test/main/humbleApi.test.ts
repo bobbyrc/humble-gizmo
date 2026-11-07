@@ -391,7 +391,7 @@ describe('getChoiceMonth', () => {
       body: page({ contentChoiceOptions: options })
     }))
     const month = await new HumbleApi(http).getChoiceMonth(order)
-    expect(http.calls[0].url).toBe('https://www.humblebundle.com/subscription/november-2026')
+    expect(http.calls[0].url).toBe('https://www.humblebundle.com/membership/november-2026')
     expect(month?.games.map((g) => g.identifier)).toEqual(['a'])
     expect(month?.parentIdentifier).toBe('initial')
   })

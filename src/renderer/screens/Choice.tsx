@@ -102,12 +102,12 @@ export default function Choice(): React.JSX.Element {
         (locked > 0 ? (
           <div className="sheet choice-empty">
             <p>
-              Humble wouldn&apos;t open your Humble Choice months. That usually means you don&apos;t
-              have an active Humble Choice subscription.
+              Humble wouldn&apos;t open your Humble Choice months, so Humble Gizmo can&apos;t tell
+              whether any picks are left.
             </p>
             <p className="muted small">
-              {locked} {locked === 1 ? 'month still has' : 'months still have'} picks you
-              haven&apos;t made.
+              {locked} {locked === 1 ? 'month' : 'months'} couldn&apos;t be checked. You can still
+              check them on the Humble website.
             </p>
           </div>
         ) : (
@@ -119,7 +119,7 @@ export default function Choice(): React.JSX.Element {
         <>
           {locked > 0 && (
             <Banner tone="warn">
-              {`Humble wouldn't open ${locked} other ${locked === 1 ? 'month' : 'months'} with picks left. That usually means your Humble Choice subscription isn't active.`}
+              {`Humble wouldn't open ${locked} other ${locked === 1 ? 'month' : 'months'}, so ${locked === 1 ? 'it' : 'they'} may have picks left too.`}
             </Banner>
           )}
           <div className="choice-months">

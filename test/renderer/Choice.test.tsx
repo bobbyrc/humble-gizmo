@@ -51,10 +51,14 @@ describe('Choice', () => {
     renderChoice()
     expect(
       await screen.findByText(
-        "Humble wouldn't open your Humble Choice months. That usually means you don't have an active Humble Choice subscription."
+        "Humble wouldn't open your Humble Choice months, so Humble Gizmo can't tell whether any picks are left."
       )
     ).toBeTruthy()
-    expect(screen.getByText("4 months still have picks you haven't made.")).toBeTruthy()
+    expect(
+      screen.getByText(
+        "4 months couldn't be checked. You can still check them on the Humble website."
+      )
+    ).toBeTruthy()
     expect(screen.queryByText('No Humble Choice picks left to make.')).toBeNull()
   })
 
@@ -63,7 +67,7 @@ describe('Choice', () => {
     renderChoice()
     expect(
       await screen.findByText(
-        "Humble wouldn't open 2 other months with picks left. That usually means your Humble Choice subscription isn't active."
+        "Humble wouldn't open 2 other months, so they may have picks left too."
       )
     ).toBeTruthy()
     expect(screen.getByText('Pick up to 2 (0 picked)')).toBeTruthy()
@@ -175,7 +179,7 @@ describe('Choice', () => {
     renderChoice()
     fireEvent.click(await screen.findByRole('button', { name: 'Claim on Humble' }))
     expect(api.openExternal).toHaveBeenCalledWith(
-      'https://www.humblebundle.com/subscription/march-2025/d'
+      'https://www.humblebundle.com/membership/march-2025/d'
     )
   })
 

@@ -91,7 +91,7 @@ async function captureHumble(salt: string): Promise<void> {
       console.log('no claimable Choice order; choice-month.json skipped')
       return
     }
-    const res = await http.get(`${HUMBLE}/subscription/${encodeURIComponent(choice.choiceUrl)}`)
+    const res = await http.get(`${HUMBLE}/membership/${encodeURIComponent(choice.choiceUrl)}`)
     if (res.status < 200 || res.status >= 300) throw new Error('choice page status')
     save('choice-month.json', parseMonthPage(res.body), salt)
   })

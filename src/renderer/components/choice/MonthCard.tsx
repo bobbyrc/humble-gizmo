@@ -70,7 +70,7 @@ export function MonthCard({
                         variant="link"
                         onClick={() =>
                           void gizmo.openExternal(
-                            `https://www.humblebundle.com/subscription/${month.choiceUrl}/${g.identifier}`
+                            `https://www.humblebundle.com/membership/${month.choiceUrl}/${g.identifier}`
                           )
                         }
                       >
